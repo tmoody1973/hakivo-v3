@@ -4,3 +4,4 @@ export type {
 } from "./deliver-daily-packet";
 
 export { deliverDailyPacket } from "./deliver-daily-packet";
+export { ingestCongressDaily } from "./ingest-congress-daily";

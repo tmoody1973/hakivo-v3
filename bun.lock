@@ -76,7 +76,10 @@
       "name": "@hakivo/packet",
       "version": "0.0.0",
       "dependencies": {
+        "@hakivo/congress": "workspace:*",
+        "@hakivo/db": "workspace:*",
         "@trigger.dev/sdk": "4.4.4",
+        "convex": "^1.17.4",
       },
       "devDependencies": {
         "typescript": "^5.7.2",
