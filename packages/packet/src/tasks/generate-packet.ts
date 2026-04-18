@@ -2,6 +2,7 @@ import { logger, task } from "@trigger.dev/sdk";
 import { createGeminiClient, FACTS_ONLY_SYSTEM_PROMPT } from "@hakivo/ai";
 import { api, type Id } from "@hakivo/db";
 import { ConvexHttpClient } from "convex/browser";
+import { biasCheckPacket } from "./bias-check-packet";
 
 /**
  * Hakivo packet generator — the first real packet.
@@ -241,11 +242,16 @@ export const generatePacket = task({
       qualityChecks: {
         readingLevelOk: true,
         factCheckOk: true,
-        biasScoreOk: true,
-        biasScore: 10,
+        biasScoreOk: false,
+        biasScore: 0,
         humanReviewed: false,
       },
     });
+
+    // Chain bias check. Fire-and-forget — the task has its own retry
+    // and patches qualityChecks + status when it finishes.
+    await biasCheckPacket.trigger({ packetId });
+    logger.log(`Chained bias-check-packet for ${packetId}`);
 
     return {
       packetId,
