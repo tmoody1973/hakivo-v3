@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
+import { Providers } from "./providers";
 import "./globals.css";
 
 const sourceSerif = Source_Serif_4({
@@ -27,11 +28,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html
-      lang="en"
-      className={`${sourceSerif.variable} ${inter.variable}`}
-    >
-      <body>{children}</body>
+    <html lang="en" className={`${sourceSerif.variable} ${inter.variable}`}>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

@@ -12,6 +12,7 @@
     "clean": "rm -rf .turbo .next"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.39.0",
     "@hakivo/ai": "workspace:*",
     "@hakivo/billing": "workspace:*",
     "@hakivo/congress": "workspace:*",
@@ -19,6 +20,7 @@
     "@hakivo/packet": "workspace:*",
     "@hakivo/referral": "workspace:*",
     "@hakivo/standards": "workspace:*",
+    "convex": "^1.17.4",
     "next": "^16.0.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
