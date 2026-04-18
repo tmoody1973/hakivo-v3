@@ -151,7 +151,6 @@ export default defineSchema({
     scheduledFor: v.number(),
     deliveredAt: v.union(v.number(), v.null()),
   })
-    .index("by_idempotency", ["idempotencyKey"])
     .index("by_recipient_date", ["recipientId", "localDate"])
     .index("by_status_scheduledFor", ["status", "scheduledFor"]),
 

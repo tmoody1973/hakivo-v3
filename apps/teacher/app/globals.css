@@ -1,9 +1,6 @@
 @import "tailwindcss";
 
-/*
- * Hakivo v3 design tokens — see CLAUDE.md ("Design tokens").
- * Political-neutrality rule: no red/blue/purple/indigo/violet.
- */
+/* Political-neutrality rule: no red/blue/purple/indigo/violet. See CLAUDE.md. */
 @theme {
   --color-cream: #FAF9F5;
   --color-ink: #1A1A1A;

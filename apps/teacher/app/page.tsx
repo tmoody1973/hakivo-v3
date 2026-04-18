@@ -4,12 +4,9 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen bg-cream text-ink">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6 md:px-10">
-        <span
-          className="text-sm font-semibold tracking-[0.32em] text-ink"
-          aria-label="Hakivo"
-        >
+        <Link href="/" className="text-sm font-semibold tracking-[0.32em] text-ink">
           HAKIVO
-        </span>
+        </Link>
         <nav aria-label="Primary" className="hidden gap-8 text-sm text-ink-muted md:flex">
           <Link href="/about" className="hover:text-ink">
             About
@@ -34,11 +31,7 @@ export default function LandingPage() {
           A civic intelligence platform for teachers and engaged citizens.
         </p>
 
-        <div
-          className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row"
-          role="group"
-          aria-label="Get started"
-        >
+        <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
             href="/for-teachers"
             className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-accent px-8 py-3 text-sm font-medium text-cream transition-colors hover:bg-accent-hover"
