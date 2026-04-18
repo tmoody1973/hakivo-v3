@@ -47,6 +47,49 @@ export const getMe = query({
  * `ctx.auth`. The server action that invokes it passes a Clerk-issued
  * JWT (template "convex") so `identity.subject` is the verified user id.
  */
+/**
+ * DEV-ONLY: Create a teacher without Clerk auth. Used by
+ * scripts/create-test-teacher.ts for week-2 pipeline smoke tests.
+ * Production onboarding path is `create` below, which requires
+ * ctx.auth.getUserIdentity().
+ *
+ * TODO(week-3): remove or gate behind an env flag before any real
+ * tenant data lands in this deployment.
+ */
+export const createForTest = mutation({
+  args: {
+    orgId: v.string(),
+    role: v.union(v.literal("teacher"), v.literal("individual")),
+    email: v.string(),
+    name: v.string(),
+    school: v.optional(v.string()),
+    state: v.optional(v.string()),
+    gradesTaught: v.array(v.string()),
+    courses: v.array(v.string()),
+    currentUnit: v.union(v.string(), v.null()),
+    targetReadingLevel: v.optional(v.string()),
+    timezone: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("teachers")
+      .withIndex("by_clerkUserId", (q) =>
+        q.eq("clerkUserId", `test:${args.email}`),
+      )
+      .first();
+    if (existing) return existing._id;
+    return await ctx.db.insert("teachers", {
+      ...args,
+      clerkUserId: `test:${args.email}`,
+      clerkOrgId: args.orgId,
+      classroomConnected: false,
+      classroomRefreshToken: null,
+      createdAt: Date.now(),
+      status: "trial",
+    });
+  },
+});
+
 export const create = mutation({
   args: {
     orgId: v.string(),

@@ -9,5 +9,10 @@ export type {
   EnrichBillPayload,
   EnrichBillResult,
 } from "./enrich-bill";
+export { generatePacket } from "./generate-packet";
+export type {
+  GeneratePacketPayload,
+  GeneratePacketResult,
+} from "./generate-packet";
 export { ingestCongressDaily } from "./ingest-congress-daily";
 export { ingestLegislatorsWeekly } from "./ingest-legislators-weekly";
