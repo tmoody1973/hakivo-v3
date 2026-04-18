@@ -4,6 +4,13 @@ import { v } from "convex/values";
 /**
  * Lookup a teacher by their Clerk user id. Returns null if not onboarded.
  */
+export const getById = query({
+  args: { id: v.id("teachers") },
+  handler: async (ctx, { id }) => {
+    return await ctx.db.get(id);
+  },
+});
+
 export const getByClerkUserId = query({
   args: { clerkUserId: v.string() },
   handler: async (ctx, { clerkUserId }) => {

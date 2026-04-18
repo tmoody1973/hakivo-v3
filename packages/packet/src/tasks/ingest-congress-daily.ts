@@ -2,6 +2,7 @@ import { schedules, logger } from "@trigger.dev/sdk";
 import { createCongressClient } from "@hakivo/congress";
 import { api } from "@hakivo/db";
 import { ConvexHttpClient } from "convex/browser";
+import { enrichBill } from "./enrich-bill";
 
 /**
  * Daily Congress.gov ingest — runs at 04:30 UTC (just before the 5am-local
@@ -69,8 +70,28 @@ export const ingestCongressDaily = schedules.task({
     const result = await convex.mutation(api.bills.upsertBatch, {
       bills: records,
     });
-
     logger.log("Upsert complete", result);
-    return { fetched: bills.length, ...result };
+
+    // Fan out enrichment. Fire-and-forget: each enrichBill has its own
+    // retry config, Congress.gov 5000/hr quota absorbs 50 × 5 = 250 calls.
+    const enrichBatch = await enrichBill.batchTrigger(
+      records.map((r) => ({
+        payload: {
+          congressNumber: r.congressNumber,
+          billType: r.billType,
+          billNumber: r.billNumber,
+          orgId: r.orgId,
+        },
+      })),
+    );
+    logger.log(
+      `Fanned out ${enrichBatch.runCount} enrichBill runs (batchId=${enrichBatch.batchId})`,
+    );
+
+    return {
+      fetched: bills.length,
+      ...result,
+      enrichmentRuns: enrichBatch.runCount,
+    };
   },
 });

@@ -7,11 +7,15 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./prompts/facts-only": "./src/prompts/facts-only.ts"
+    "./prompts/facts-only": "./src/prompts/facts-only.ts",
+    "./gemini": "./src/gemini.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .turbo dist"
+  },
+  "dependencies": {
+    "@google/genai": "^1.4.0"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

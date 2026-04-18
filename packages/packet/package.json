@@ -15,6 +15,7 @@
     "clean": "rm -rf .turbo dist"
   },
   "dependencies": {
+    "@hakivo/ai": "workspace:*",
     "@hakivo/congress": "workspace:*",
     "@hakivo/db": "workspace:*",
     "@trigger.dev/sdk": "4.4.4",

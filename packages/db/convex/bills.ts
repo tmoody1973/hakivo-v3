@@ -52,6 +52,32 @@ export const upsertBatch = mutation({
   },
 });
 
+export const getById = query({
+  args: { id: v.id("bills") },
+  handler: async (ctx, { id }) => {
+    return await ctx.db.get(id);
+  },
+});
+
+export const getByRef = query({
+  args: {
+    congressNumber: v.number(),
+    billType: v.string(),
+    billNumber: v.number(),
+  },
+  handler: async (ctx, { congressNumber, billType, billNumber }) => {
+    return await ctx.db
+      .query("bills")
+      .withIndex("by_congress", (q) =>
+        q
+          .eq("congressNumber", congressNumber)
+          .eq("billType", billType)
+          .eq("billNumber", billNumber),
+      )
+      .first();
+  },
+});
+
 export const listRecent = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) => {
