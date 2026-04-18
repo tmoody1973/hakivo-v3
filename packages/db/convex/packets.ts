@@ -24,13 +24,12 @@ export const getById = query({
 });
 
 /**
- * Patch the bias-check result onto a packet. Called by the
+ * Patch the full bias-check result onto a packet. Called by the
  * bias-check-packet Trigger.dev task after Claude/Gemini scores the packet.
  *
  * Pass threshold rule: all 5 sub-criteria must clear their individual
- * thresholds (7/7/8/8/9 per design doc §Bias-Check Rubric). Only the
- * overall score and pass flag are stored on the packet; sub-scores live
- * in the task result and Trigger.dev run logs.
+ * thresholds (7/7/8/8/9 per design doc §Bias-Check Rubric). Overall,
+ * per-criterion scores, provider, notes, and timestamp all persist.
  *
  * On pass: status → "delivered" (week-2; week-3 will gate on PDF + email).
  * On fail: status → "review" for the human review queue.
@@ -40,8 +39,27 @@ export const setBiasCheck = mutation({
     id: v.id("packets"),
     biasScore: v.number(),
     biasScoreOk: v.boolean(),
+    biasSubScores: v.object({
+      factualClaimsOnly: v.number(),
+      multiplePerspectives: v.number(),
+      openEndedQuestions: v.number(),
+      languageNeutrality: v.number(),
+      primarySourceAttribution: v.number(),
+    }),
+    biasReviewNotes: v.string(),
+    biasProvider: v.union(v.literal("claude"), v.literal("gemini-fallback")),
   },
-  handler: async (ctx, { id, biasScore, biasScoreOk }) => {
+  handler: async (
+    ctx,
+    {
+      id,
+      biasScore,
+      biasScoreOk,
+      biasSubScores,
+      biasReviewNotes,
+      biasProvider,
+    },
+  ) => {
     const packet = await ctx.db.get(id);
     if (!packet) throw new Error(`Packet ${id} not found`);
     await ctx.db.patch(id, {
@@ -49,10 +67,66 @@ export const setBiasCheck = mutation({
         ...packet.qualityChecks,
         biasScore,
         biasScoreOk,
+        biasSubScores,
+        biasReviewNotes,
+        biasProvider,
+        biasCheckedAt: Date.now(),
       },
       status: biasScoreOk ? "delivered" : "review",
     });
     return { status: biasScoreOk ? "delivered" : "review" };
+  },
+});
+
+/**
+ * Founder-queue operation: approve or reject a packet that the auto
+ * bias check flagged. On approve, status advances to delivered. On reject,
+ * status lands at failed so the packet never ships.
+ *
+ * reviewerId is expected to be the Clerk user id of the founder. The
+ * admin UI server action fetches this from Clerk auth and passes it
+ * through; the mutation does not re-verify identity — auth is the
+ * server action's job.
+ */
+export const humanReview = mutation({
+  args: {
+    id: v.id("packets"),
+    decision: v.union(v.literal("approve"), v.literal("reject")),
+    reviewerId: v.string(),
+    note: v.optional(v.string()),
+  },
+  handler: async (ctx, { id, decision, reviewerId, note }) => {
+    const packet = await ctx.db.get(id);
+    if (!packet) throw new Error(`Packet ${id} not found`);
+    await ctx.db.patch(id, {
+      qualityChecks: {
+        ...packet.qualityChecks,
+        humanReviewed: true,
+        humanReviewDecision: decision,
+        ...(note !== undefined && { humanReviewNote: note }),
+        humanReviewerId: reviewerId,
+        humanReviewedAt: Date.now(),
+      },
+      status: decision === "approve" ? "delivered" : "failed",
+    });
+    return { status: decision === "approve" ? "delivered" : "failed" };
+  },
+});
+
+/**
+ * List packets needing founder review. Today's rule: status=review AND
+ * humanReviewed is not yet true. Ordered by generatedAt desc so the
+ * newest ones are at the top of the queue.
+ */
+export const listPendingReview = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit }) => {
+    const rows = await ctx.db
+      .query("packets")
+      .withIndex("by_status", (q) => q.eq("status", "review"))
+      .order("desc")
+      .take(limit ?? 50);
+    return rows.filter((p) => !p.qualityChecks.humanReviewed);
   },
 });
 

@@ -83,6 +83,15 @@ export const biasCheckPacket = task({
       id: payload.packetId,
       biasScore: result.overallScore,
       biasScoreOk: result.passed,
+      biasSubScores: {
+        factualClaimsOnly: result.factualClaimsOnly,
+        multiplePerspectives: result.multiplePerspectives,
+        openEndedQuestions: result.openEndedQuestions,
+        languageNeutrality: result.languageNeutrality,
+        primarySourceAttribution: result.primarySourceAttribution,
+      },
+      biasReviewNotes: result.reviewNotes,
+      biasProvider: result.provider,
     });
 
     return {

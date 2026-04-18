@@ -184,7 +184,29 @@ export default defineSchema({
       factCheckOk: v.boolean(),
       biasScoreOk: v.boolean(),
       biasScore: v.number(),
+      /** Per-criterion scores (0-10) from the Claude/Gemini rubric */
+      biasSubScores: v.optional(
+        v.object({
+          factualClaimsOnly: v.number(),
+          multiplePerspectives: v.number(),
+          openEndedQuestions: v.number(),
+          languageNeutrality: v.number(),
+          primarySourceAttribution: v.number(),
+        }),
+      ),
+      /** Reviewer's short justification when any criterion fails */
+      biasReviewNotes: v.optional(v.string()),
+      biasProvider: v.optional(
+        v.union(v.literal("claude"), v.literal("gemini-fallback")),
+      ),
+      biasCheckedAt: v.optional(v.number()),
       humanReviewed: v.boolean(),
+      humanReviewDecision: v.optional(
+        v.union(v.literal("approve"), v.literal("reject")),
+      ),
+      humanReviewNote: v.optional(v.string()),
+      humanReviewerId: v.optional(v.string()),
+      humanReviewedAt: v.optional(v.number()),
     }),
     generatedAt: v.number(),
     deliveredAt: v.union(v.number(), v.null()),
