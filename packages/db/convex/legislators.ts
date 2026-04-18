@@ -24,6 +24,12 @@ const legislatorRecord = v.object({
   officialUrl: v.optional(v.string()),
   phone: v.optional(v.string()),
   office: v.optional(v.string()),
+  photoUrl: v.optional(v.string()),
+  wikipediaSlug: v.optional(v.string()),
+  twitter: v.optional(v.string()),
+  youtube: v.optional(v.string()),
+  facebook: v.optional(v.string()),
+  instagram: v.optional(v.string()),
 });
 
 export const upsertBatch = mutation({

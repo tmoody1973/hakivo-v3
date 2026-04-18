@@ -49,9 +49,15 @@ export const ingestLegislatorsWeekly = schedules.task({
       party: l.party,
       termStart: l.termStart,
       termEnd: l.termEnd,
+      photoUrl: l.photoUrl,
       ...(l.officialUrl !== undefined && { officialUrl: l.officialUrl }),
       ...(l.phone !== undefined && { phone: l.phone }),
       ...(l.office !== undefined && { office: l.office }),
+      ...(l.wikipediaSlug !== undefined && { wikipediaSlug: l.wikipediaSlug }),
+      ...(l.twitter !== undefined && { twitter: l.twitter }),
+      ...(l.youtube !== undefined && { youtube: l.youtube }),
+      ...(l.facebook !== undefined && { facebook: l.facebook }),
+      ...(l.instagram !== undefined && { instagram: l.instagram }),
     }));
 
     const convex = new ConvexHttpClient(convexUrl);
