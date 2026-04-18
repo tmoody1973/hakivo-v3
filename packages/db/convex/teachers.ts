@@ -11,6 +11,22 @@ export const getById = query({
   },
 });
 
+/**
+ * DEV-ONLY: repoint an existing teacher row to a new orgId. Used during
+ * week-2 to fix onboarding rows created before the shared-org convention
+ * was locked in. Remove in week-3.
+ */
+export const repointOrg = mutation({
+  args: {
+    id: v.id("teachers"),
+    orgId: v.string(),
+  },
+  handler: async (ctx, { id, orgId }) => {
+    await ctx.db.patch(id, { orgId });
+    return { id, orgId };
+  },
+});
+
 export const getByClerkUserId = query({
   args: { clerkUserId: v.string() },
   handler: async (ctx, { clerkUserId }) => {

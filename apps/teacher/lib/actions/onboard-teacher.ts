@@ -46,10 +46,16 @@ export async function onboardTeacher(
     };
   }
 
+  // v3.0: all teacher+consumer packets share one org. Multi-tenant shape
+  // is preserved in the schema (Premise 8) but the institutional tier
+  // lands in v3.1 — until then everyone lives under "hakivo-v3".
+  const sharedOrgId = "hakivo-v3";
+  void orgId;
+
   await fetchMutation(
     api.teachers.create,
     {
-      orgId: orgId ?? userId,
+      orgId: sharedOrgId,
       role: "teacher",
       email,
       name,
