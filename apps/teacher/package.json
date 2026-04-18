@@ -1,0 +1,35 @@
+{
+  "name": "@hakivo/teacher",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .turbo .next"
+  },
+  "dependencies": {
+    "@hakivo/ai": "workspace:*",
+    "@hakivo/billing": "workspace:*",
+    "@hakivo/congress": "workspace:*",
+    "@hakivo/db": "workspace:*",
+    "@hakivo/packet": "workspace:*",
+    "@hakivo/referral": "workspace:*",
+    "@hakivo/standards": "workspace:*",
+    "next": "^16.0.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.9.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/*
+ * Hakivo v3 design tokens — see CLAUDE.md ("Design tokens").
+ * Political-neutrality rule: no red/blue/purple/indigo/violet.
+ */
+@theme {
+  --color-cream: #FAF9F5;
+  --color-ink: #1A1A1A;
+  --color-ink-muted: #4A4A4A;
+  --color-rule: #E8E5DB;
+  --color-accent: #3B5B5C;
+  --color-accent-hover: #2F4A4B;
+
+  --font-serif: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
