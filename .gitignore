@@ -58,3 +58,7 @@ next-env.d.ts
 
 # Sentry
 .sentryclirc
+
+# Claude Code session state
+.claude
+Plans
