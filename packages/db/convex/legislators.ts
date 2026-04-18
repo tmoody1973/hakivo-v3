@@ -30,6 +30,8 @@ const legislatorRecord = v.object({
   youtube: v.optional(v.string()),
   facebook: v.optional(v.string()),
   instagram: v.optional(v.string()),
+  fecIds: v.optional(v.array(v.string())),
+  opensecretsId: v.optional(v.string()),
 });
 
 export const upsertBatch = mutation({

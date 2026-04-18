@@ -58,6 +58,8 @@ export const ingestLegislatorsWeekly = schedules.task({
       ...(l.youtube !== undefined && { youtube: l.youtube }),
       ...(l.facebook !== undefined && { facebook: l.facebook }),
       ...(l.instagram !== undefined && { instagram: l.instagram }),
+      ...(l.fecIds !== undefined && { fecIds: [...l.fecIds] }),
+      ...(l.opensecretsId !== undefined && { opensecretsId: l.opensecretsId }),
     }));
 
     const convex = new ConvexHttpClient(convexUrl);

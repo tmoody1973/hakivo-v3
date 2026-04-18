@@ -39,6 +39,8 @@ type YamlLegislator = {
   id: {
     bioguide: string;
     wikipedia?: string;
+    fec?: readonly string[];
+    opensecrets?: string;
   };
   name: { first: string; last: string; official_full?: string };
   terms: YamlTerm[];
@@ -75,6 +77,8 @@ export type Legislator = {
   readonly youtube?: string;
   readonly facebook?: string;
   readonly instagram?: string;
+  readonly fecIds?: readonly string[];
+  readonly opensecretsId?: string;
 };
 
 async function fetchYaml<T>(url: string): Promise<T> {
@@ -126,6 +130,11 @@ export async function fetchCurrentLegislators(): Promise<readonly Legislator[]> 
         ...(social.youtube !== undefined && { youtube: social.youtube }),
         ...(social.facebook !== undefined && { facebook: social.facebook }),
         ...(social.instagram !== undefined && { instagram: social.instagram }),
+        ...(entry.id.fec !== undefined &&
+          entry.id.fec.length > 0 && { fecIds: entry.id.fec }),
+        ...(entry.id.opensecrets !== undefined && {
+          opensecretsId: entry.id.opensecrets,
+        }),
       };
       return result;
     })
