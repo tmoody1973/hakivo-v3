@@ -10,8 +10,10 @@
     "./schema": "./convex/schema.ts"
   },
   "scripts": {
+    "dev": "convex dev",
+    "deploy": "convex deploy",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf .turbo dist"
+    "clean": "rm -rf .turbo dist convex/_generated"
   },
   "dependencies": {
     "convex": "^1.17.4"
