@@ -8,13 +8,15 @@
   "exports": {
     ".": "./src/index.ts",
     "./prompts/facts-only": "./src/prompts/facts-only.ts",
-    "./gemini": "./src/gemini.ts"
+    "./gemini": "./src/gemini.ts",
+    "./bias-check": "./src/bias-check.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .turbo dist"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.40.1",
     "@google/genai": "^1.4.0"
   },
   "devDependencies": {

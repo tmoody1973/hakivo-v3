@@ -24,6 +24,39 @@ export const getById = query({
 });
 
 /**
+ * Patch the bias-check result onto a packet. Called by the
+ * bias-check-packet Trigger.dev task after Claude/Gemini scores the packet.
+ *
+ * Pass threshold rule: all 5 sub-criteria must clear their individual
+ * thresholds (7/7/8/8/9 per design doc §Bias-Check Rubric). Only the
+ * overall score and pass flag are stored on the packet; sub-scores live
+ * in the task result and Trigger.dev run logs.
+ *
+ * On pass: status → "delivered" (week-2; week-3 will gate on PDF + email).
+ * On fail: status → "review" for the human review queue.
+ */
+export const setBiasCheck = mutation({
+  args: {
+    id: v.id("packets"),
+    biasScore: v.number(),
+    biasScoreOk: v.boolean(),
+  },
+  handler: async (ctx, { id, biasScore, biasScoreOk }) => {
+    const packet = await ctx.db.get(id);
+    if (!packet) throw new Error(`Packet ${id} not found`);
+    await ctx.db.patch(id, {
+      qualityChecks: {
+        ...packet.qualityChecks,
+        biasScore,
+        biasScoreOk,
+      },
+      status: biasScoreOk ? "delivered" : "review",
+    });
+    return { status: biasScoreOk ? "delivered" : "review" };
+  },
+});
+
+/**
  * Create a generated packet row. Called by the generatePacket task
  * after Gemini produces structured output.
  *
