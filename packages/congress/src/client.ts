@@ -16,10 +16,14 @@ const BASE_URL = "https://api.congress.gov/v3";
 
 export type BillType = "hr" | "s" | "hjres" | "sjres" | "hconres" | "sconres" | "hres" | "sres";
 
+/**
+ * Note: Congress.gov returns `number` as a string (e.g., "144") but `congress`
+ * as a number. Callers must coerce `number` with `Number()` before storing.
+ */
 export type BillListItem = {
   readonly congress: number;
   readonly type: string;
-  readonly number: number;
+  readonly number: string;
   readonly title: string;
   readonly introducedDate: string | null;
   readonly latestAction: { readonly actionDate: string; readonly text: string } | null;

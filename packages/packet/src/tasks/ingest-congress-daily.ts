@@ -55,9 +55,9 @@ export const ingestCongressDaily = schedules.task({
         : introduced;
       return {
         orgId: DEFAULT_ORG_ID,
-        congressNumber: b.congress,
+        congressNumber: Number(b.congress),
         billType: b.type.toLowerCase(),
-        billNumber: b.number,
+        billNumber: Number(b.number),
         title: b.title,
         introducedDate: introduced,
         latestAction: b.latestAction?.text ?? "",
