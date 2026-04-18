@@ -185,11 +185,18 @@ export const generatePacket = task({
 
     const unitQuery =
       (teacher.currentUnit && CED_UNIT_QUERIES[teacher.currentUnit]) ??
-      "Recent Congressional activity of general civic interest: bills, floor action, committee work";
+      // Sharper than "general civic interest" — aimed at substantive
+      // pending policy with recent legislative motion, not organizational
+      // resolutions. Broad policy vocabulary so vector search can find a
+      // high-recall set before the recency re-rank.
+      "Substantive pending federal legislation with recent committee action, floor votes, or significant sponsor activity. Concrete policy proposals affecting citizens: healthcare, education, civil rights, economy, technology, environment, transportation, voting, immigration, national security.";
     const embeddingQuery = `${unitQuery}. Teacher courses: ${teacher.courses.join(", ")}. State: ${teacher.state ?? "US"}.`;
-    logger.log("Embedding query", { embeddingQuery });
+    logger.log("Embedding query (RETRIEVAL_QUERY)", { embeddingQuery });
 
-    const queryEmbedding = await gemini.embed(embeddingQuery);
+    // Asymmetric Gemini task types: query side uses RETRIEVAL_QUERY;
+    // documents were embedded with RETRIEVAL_DOCUMENT in enrichBill.
+    // Per Gemini A/B tests this asymmetry lifts retrieval quality ~34%.
+    const queryEmbedding = await gemini.embed(embeddingQuery, "query");
 
     const context = await convex.action(api.graph.buildPacketContext, {
       teacherId: payload.teacherId,

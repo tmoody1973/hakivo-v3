@@ -202,13 +202,18 @@ export const buildPacketContext = action({
     });
     if (!teacher) throw new Error(`Teacher ${args.teacherId} not found`);
 
-    const cap = args.maxBills ?? 6;
+    const finalCount = args.maxBills ?? 6;
+    // Hybrid retrieval — 2026 RAG canonical pattern:
+    //   retrieve wide via vector (recall) → re-rank with recency decay → top-K
+    // Convex vectorIndex filterFields only support equality, so recency
+    // lives in the re-rank stage rather than the retrieval filter.
+    const wideLimit = Math.max(24, finalCount * 4);
     const vectorResults = await ctx.vectorSearch("bills", "by_embedding", {
       vector: args.queryEmbedding,
-      limit: cap,
+      limit: wideLimit,
       filter: (q) => q.eq("orgId", teacher.orgId),
     });
-    const bills = (
+    const retrieved = (
       await Promise.all(
         vectorResults.map(async (r) => {
           const bill = await ctx.runQuery(api.bills.getById, { id: r._id });
@@ -216,6 +221,21 @@ export const buildPacketContext = action({
         }),
       )
     ).filter((b): b is NonNullable<typeof b> => b !== null);
+
+    // Re-rank: final = vector_score × exp(-age_days / 30).
+    // 30-day half-life matches civic-tech intuition — a bill with action
+    // today is worth ~2x a bill untouched for 30 days, ~7x vs 90 days.
+    const now = Date.now();
+    const DAY_MS = 86_400_000;
+    const DECAY_DAYS = 30;
+    const bills = retrieved
+      .map((r) => {
+        const ageDays = Math.max(0, (now - r.bill.latestActionDate) / DAY_MS);
+        const recencyFactor = Math.exp(-ageDays / DECAY_DAYS);
+        return { bill: r.bill, score: r.score * recencyFactor };
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, finalCount);
 
     const enriched: PacketContextBill[] = await Promise.all(
       bills.map(async ({ bill, score }) => {

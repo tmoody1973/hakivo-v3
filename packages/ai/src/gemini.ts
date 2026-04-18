@@ -15,8 +15,17 @@
 
 import { GoogleGenAI } from "@google/genai";
 
+export type EmbedMode = "document" | "query";
+
 export type GeminiClient = {
-  readonly embed: (text: string) => Promise<readonly number[]>;
+  /**
+   * Embed text for vector search. `mode` MUST be asymmetric — corpus
+   * documents use "document" (RETRIEVAL_DOCUMENT), user queries use
+   * "query" (RETRIEVAL_QUERY). Using DOCUMENT for both degrades retrieval
+   * by ~34% per Gemini's own A/B tests — the pattern is required, not
+   * optional, for embedding-001 + gemini-embedding-2.
+   */
+  readonly embed: (text: string, mode?: EmbedMode) => Promise<readonly number[]>;
   readonly generateStructured: <T>(args: {
     readonly systemPrompt: string;
     readonly userPrompt: string;
@@ -34,13 +43,13 @@ export function createGeminiClient(apiKey: string): GeminiClient {
   const client = new GoogleGenAI({ apiKey });
 
   return {
-    async embed(text) {
+    async embed(text, mode = "document") {
       const response = await client.models.embedContent({
         model: EMBEDDING_MODEL,
         contents: text,
         config: {
           outputDimensionality: EMBEDDING_DIM,
-          taskType: "RETRIEVAL_DOCUMENT",
+          taskType: mode === "query" ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT",
         },
       });
       const values = response.embeddings?.[0]?.values;
