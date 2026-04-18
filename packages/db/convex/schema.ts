@@ -49,14 +49,80 @@ export default defineSchema({
     introducedDate: v.number(),
     latestAction: v.string(),
     latestActionDate: v.number(),
+    /** Full bill text inline when <=900KB, else use billTextUrl (R2) */
     billText: v.optional(v.string()),
+    billTextUrl: v.optional(v.string()),
+    billTextSource: v.optional(v.string()),
+    billTextFetchedAt: v.optional(v.number()),
+    /** Authoritative CRS plain-language summary */
     summary: v.optional(v.string()),
+    /** AI-generated teacher-grade summary (FACTS_ONLY_SYSTEM_PROMPT) */
     aiSummary: v.optional(v.string()),
     aiSummaryGeneratedAt: v.optional(v.number()),
     topics: v.array(v.string()),
+    /**
+     * Vector embedding of (title + summary + first 5K chars of billText).
+     * gemini-embedding-001 is 768-dim. Used by Convex vectorIndex for
+     * semantic bill discovery in the GraphRAG context API.
+     */
+    embedding: v.optional(v.array(v.float64())),
+    enrichedAt: v.optional(v.number()),
   })
     .index("by_congress", ["congressNumber", "billType", "billNumber"])
-    .index("by_latestAction", ["latestActionDate"]),
+    .index("by_latestAction", ["latestActionDate"])
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
+      dimensions: 768,
+      filterFields: ["orgId", "congressNumber"],
+    }),
+
+  /**
+   * Append-only log of actions for a bill. Populated by enrichBill.
+   * Canonical bill reference is "congress-billType-billNumber" (e.g., "119-hr-27").
+   */
+  billActions: defineTable({
+    orgId: v.string(),
+    billRef: v.string(),
+    actionDate: v.number(),
+    actionType: v.string(),
+    actionText: v.string(),
+    chamber: v.optional(v.union(v.literal("house"), v.literal("senate"))),
+    actionCode: v.optional(v.string()),
+  })
+    .index("by_bill_date", ["billRef", "actionDate"])
+    .index("by_date", ["actionDate"]),
+
+  /**
+   * Cosponsorship link table — many-to-many between bills and legislators.
+   * Used by GraphRAG to compute party balance and state-delegation involvement.
+   */
+  billCosponsors: defineTable({
+    orgId: v.string(),
+    billRef: v.string(),
+    bioguideId: v.string(),
+    party: v.string(),
+    state: v.string(),
+    sponsorshipDate: v.string(),
+    isOriginalCosponsor: v.boolean(),
+    isWithdrawn: v.boolean(),
+  })
+    .index("by_bill", ["billRef"])
+    .index("by_member", ["bioguideId"])
+    .index("by_bill_member", ["billRef", "bioguideId"]),
+
+  /**
+   * Policy-area + legislative-subject tags. Used by GraphRAG for
+   * CED/C3 alignment and topic-based filtering.
+   */
+  billSubjects: defineTable({
+    orgId: v.string(),
+    billRef: v.string(),
+    subject: v.string(),
+    isPolicyArea: v.boolean(),
+  })
+    .index("by_subject", ["subject"])
+    .index("by_bill", ["billRef"])
+    .index("by_policyArea", ["isPolicyArea", "subject"]),
 
   congressEvents: defineTable({
     orgId: v.string(),

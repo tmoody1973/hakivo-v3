@@ -35,6 +35,49 @@ export type BillDetail = BillListItem & {
   readonly textVersions: readonly { readonly type: string; readonly date: string; readonly formats: readonly { readonly type: string; readonly url: string }[] }[];
 };
 
+export type BillAction = {
+  readonly actionDate: string;
+  readonly text: string;
+  readonly type: string;
+  readonly actionCode?: string;
+  readonly sourceSystem?: { readonly name: string };
+};
+
+export type BillCosponsor = {
+  readonly bioguideId: string;
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly fullName: string;
+  readonly party: string;
+  readonly state: string;
+  readonly district?: number;
+  readonly sponsorshipDate: string;
+  readonly isOriginalCosponsor: boolean;
+  readonly sponsorshipWithdrawnDate?: string;
+};
+
+export type BillSubjects = {
+  readonly policyArea: { readonly name: string } | null;
+  readonly legislativeSubjects: readonly { readonly name: string }[];
+};
+
+export type BillSummary = {
+  readonly actionDate: string;
+  readonly actionDesc: string;
+  readonly text: string;
+  readonly updateDate: string;
+  readonly versionCode: string;
+};
+
+export type BillTextVersion = {
+  readonly type: string;
+  readonly date: string;
+  readonly formats: readonly {
+    readonly type: string;
+    readonly url: string;
+  }[];
+};
+
 export interface CongressClient {
   readonly listRecentBills: (args: {
     readonly congress: number;
@@ -46,6 +89,43 @@ export interface CongressClient {
     readonly type: BillType;
     readonly number: number;
   }) => Promise<BillDetail | null>;
+  readonly getBillActions: (args: {
+    readonly congress: number;
+    readonly type: string;
+    readonly number: number;
+    readonly limit?: number;
+  }) => Promise<readonly BillAction[]>;
+  readonly getBillCosponsors: (args: {
+    readonly congress: number;
+    readonly type: string;
+    readonly number: number;
+    readonly limit?: number;
+  }) => Promise<readonly BillCosponsor[]>;
+  readonly getBillSubjects: (args: {
+    readonly congress: number;
+    readonly type: string;
+    readonly number: number;
+  }) => Promise<BillSubjects>;
+  readonly getBillSummaries: (args: {
+    readonly congress: number;
+    readonly type: string;
+    readonly number: number;
+  }) => Promise<readonly BillSummary[]>;
+  readonly getBillTextVersions: (args: {
+    readonly congress: number;
+    readonly type: string;
+    readonly number: number;
+  }) => Promise<readonly BillTextVersion[]>;
+  /**
+   * Fetches the latest bill text in plain form. Prefers "Formatted Text"
+   * (HTML with semantic markup), strips tags. Returns null if no text
+   * version has been published yet (common for recently-introduced bills).
+   */
+  readonly getLatestBillText: (args: {
+    readonly congress: number;
+    readonly type: string;
+    readonly number: number;
+  }) => Promise<{ readonly text: string; readonly source: string } | null>;
 }
 
 export class CongressApiError extends Error {
@@ -110,5 +190,102 @@ export function createCongressClient(apiKey: string): CongressClient {
         throw err;
       }
     },
+
+    async getBillActions({ congress, type, number, limit = 250 }) {
+      type Response = { actions: readonly BillAction[] };
+      const data = await request<Response>(
+        `/bill/${congress}/${type}/${number}/actions`,
+        { limit },
+      );
+      return data.actions;
+    },
+
+    async getBillCosponsors({ congress, type, number, limit = 250 }) {
+      type Response = { cosponsors: readonly BillCosponsor[] };
+      const data = await request<Response>(
+        `/bill/${congress}/${type}/${number}/cosponsors`,
+        { limit },
+      );
+      return data.cosponsors;
+    },
+
+    async getBillSubjects({ congress, type, number }) {
+      type Response = {
+        subjects: {
+          policyArea?: { name: string };
+          legislativeSubjects?: readonly { name: string }[];
+        };
+      };
+      const data = await request<Response>(
+        `/bill/${congress}/${type}/${number}/subjects`,
+      );
+      return {
+        policyArea: data.subjects.policyArea ?? null,
+        legislativeSubjects: data.subjects.legislativeSubjects ?? [],
+      };
+    },
+
+    async getBillSummaries({ congress, type, number }) {
+      type Response = { summaries: readonly BillSummary[] };
+      const data = await request<Response>(
+        `/bill/${congress}/${type}/${number}/summaries`,
+      );
+      return data.summaries;
+    },
+
+    async getBillTextVersions({ congress, type, number }) {
+      type Response = { textVersions: readonly BillTextVersion[] };
+      const data = await request<Response>(
+        `/bill/${congress}/${type}/${number}/text`,
+      );
+      return data.textVersions;
+    },
+
+    async getLatestBillText({ congress, type, number }) {
+      const versions = await this.getBillTextVersions({
+        congress,
+        type,
+        number,
+      });
+      if (versions.length === 0) return null;
+      // textVersions list is newest-first in the Congress.gov response.
+      const latest = versions[0]!;
+      const html =
+        latest.formats.find((f) => f.type === "Formatted Text") ??
+        latest.formats.find((f) => f.type === "Formatted XML") ??
+        latest.formats[0];
+      if (!html) return null;
+      const res = await fetch(html.url);
+      if (!res.ok) {
+        throw new CongressApiError(
+          res.status,
+          `Failed to fetch bill text at ${html.url}: ${res.status} ${res.statusText}`,
+        );
+      }
+      const raw = await res.text();
+      const plain = stripHtml(raw).trim();
+      return { text: plain, source: latest.type };
+    },
   };
+}
+
+/**
+ * Minimal HTML → plain text stripper for Congress.gov "Formatted Text"
+ * (HTML with light semantic markup). Removes <style>, <script>, tags,
+ * collapses whitespace. No external dep — keeps @hakivo/congress lean.
+ */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<\/(p|div|h[1-6]|li|br|tr)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#8217;/g, "’")
+    .replace(/&#8220;|&#8221;/g, '"')
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n\s*\n+/g, "\n\n");
 }

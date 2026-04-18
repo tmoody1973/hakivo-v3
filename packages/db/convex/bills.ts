@@ -62,3 +62,47 @@ export const listRecent = query({
       .take(limit ?? 20);
   },
 });
+
+/**
+ * Patch a single bill with enrichment data. Called by the enrichBill
+ * Trigger.dev task after fetching text + summary + generating embedding.
+ *
+ * The bill row must already exist (inserted by ingestCongressDaily).
+ * Errors if bill is missing — enrichBill should skip nonexistent refs.
+ */
+export const enrichOne = mutation({
+  args: {
+    congressNumber: v.number(),
+    billType: v.string(),
+    billNumber: v.number(),
+    billText: v.optional(v.string()),
+    billTextUrl: v.optional(v.string()),
+    billTextSource: v.optional(v.string()),
+    summary: v.optional(v.string()),
+    topics: v.optional(v.array(v.string())),
+    embedding: v.optional(v.array(v.float64())),
+  },
+  handler: async (ctx, args) => {
+    const { congressNumber, billType, billNumber, ...patch } = args;
+    const existing = await ctx.db
+      .query("bills")
+      .withIndex("by_congress", (q) =>
+        q
+          .eq("congressNumber", congressNumber)
+          .eq("billType", billType)
+          .eq("billNumber", billNumber),
+      )
+      .first();
+    if (!existing) {
+      throw new Error(
+        `enrichOne: bill ${congressNumber}-${billType}-${billNumber} not found — run ingestCongressDaily first`,
+      );
+    }
+    await ctx.db.patch(existing._id, {
+      ...patch,
+      ...(patch.billText !== undefined && { billTextFetchedAt: Date.now() }),
+      enrichedAt: Date.now(),
+    });
+    return existing._id;
+  },
+});
