@@ -7,11 +7,15 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./idempotency": "./src/idempotency.ts"
+    "./idempotency": "./src/idempotency.ts",
+    "./tasks": "./src/tasks/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .turbo dist"
+  },
+  "dependencies": {
+    "@trigger.dev/sdk": "4.4.4"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

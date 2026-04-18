@@ -62,3 +62,5 @@ next-env.d.ts
 # Claude Code session state
 .claude
 Plans
+
+.trigger

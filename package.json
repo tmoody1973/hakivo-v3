@@ -18,8 +18,12 @@
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "@trigger.dev/build": "4.4.4",
     "convex": "^1.17.4",
     "turbo": "^2.3.0",
     "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@trigger.dev/sdk": "4.4.4"
   }
 }
