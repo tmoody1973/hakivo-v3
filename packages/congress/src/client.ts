@@ -154,7 +154,11 @@ export function createCongressClient(apiKey: string): CongressClient {
         Object.entries(params).map(([k, v]) => [k, String(v)]),
       ),
     });
-    const url = `${BASE_URL}${path}?${query.toString()}`;
+    // Congress.gov's sort param expects LITERAL "+" (as in "updateDate+desc").
+    // URLSearchParams encodes "+" as "%2B", which the API silently parses as
+    // ascending order — pulling the OLDEST matching bills. Un-encode before
+    // fetching. Verified: sort=updateDate+desc → newest, %2B → oldest.
+    const url = `${BASE_URL}${path}?${query.toString().replace(/%2B/g, "+")}`;
     const res = await fetch(url);
     if (res.status === 429) {
       throw new CongressApiError(429, "Congress.gov rate limit exceeded");
