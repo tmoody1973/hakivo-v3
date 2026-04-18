@@ -178,4 +178,33 @@ export default defineSchema({
   })
     .index("by_date", ["date"])
     .index("by_orgId_date", ["orgId", "date"]),
+
+  /**
+   * House + Senate roster, sourced from unitedstates/congress-legislators
+   * on GitHub. Ingested weekly — roster changes are rare (resignations,
+   * special elections, deaths) so daily refresh wastes quota.
+   *
+   * Stores only the CURRENT term per legislator. Historical terms are
+   * accessible from the same GitHub repo if a future feature needs them.
+   */
+  legislators: defineTable({
+    orgId: v.string(),
+    bioguideId: v.string(),
+    firstName: v.string(),
+    lastName: v.string(),
+    fullName: v.string(),
+    state: v.string(),
+    chamber: v.union(v.literal("house"), v.literal("senate")),
+    district: v.union(v.number(), v.null()),
+    party: v.string(),
+    termStart: v.string(),
+    termEnd: v.string(),
+    officialUrl: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    office: v.optional(v.string()),
+  })
+    .index("by_bioguideId", ["bioguideId"])
+    .index("by_state_chamber", ["state", "chamber"])
+    .index("by_chamber_state", ["chamber", "state"])
+    .index("by_orgId", ["orgId"]),
 });

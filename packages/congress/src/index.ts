@@ -13,3 +13,5 @@ export {
   type BillType,
   type CongressClient,
 } from "./client";
+
+export { fetchCurrentLegislators, type Legislator } from "./legislators";

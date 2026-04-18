@@ -5,3 +5,4 @@ export type {
 
 export { deliverDailyPacket } from "./deliver-daily-packet";
 export { ingestCongressDaily } from "./ingest-congress-daily";
+export { ingestLegislatorsWeekly } from "./ingest-legislators-weekly";
