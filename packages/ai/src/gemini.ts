@@ -44,15 +44,37 @@ export function createGeminiClient(apiKey: string): GeminiClient {
 
   return {
     async embed(text, mode = "document") {
-      const response = await client.models.embedContent({
-        model: EMBEDDING_MODEL,
-        contents: text,
-        config: {
-          outputDimensionality: EMBEDDING_DIM,
-          taskType: mode === "query" ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT",
+      // Direct REST call with x-goog-api-key header — the production-grade
+      // auth path per Google docs. We had a session where the @google/genai
+      // SDK silently accepted a stale shell-exported GEMINI_API_KEY (Next
+      // .env.local doesn't override system env vars), so this code path
+      // is also more transparent for debugging.
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+          "User-Agent": "hakivo-v3/1.0",
         },
+        body: JSON.stringify({
+          model: `models/${EMBEDDING_MODEL}`,
+          content: { parts: [{ text }] },
+          taskType:
+            mode === "query" ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT",
+          outputDimensionality: EMBEDDING_DIM,
+        }),
       });
-      const values = response.embeddings?.[0]?.values;
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(
+          `Gemini embed failed: ${res.status} ${res.statusText} — ${body.slice(0, 300)}`,
+        );
+      }
+      const data = (await res.json()) as {
+        embedding?: { values?: readonly number[] };
+      };
+      const values = data.embedding?.values;
       if (!values) throw new Error("Gemini returned no embedding values");
       return values;
     },
