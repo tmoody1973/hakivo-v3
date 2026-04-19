@@ -29,6 +29,12 @@ export default defineSchema({
     timezone: v.string(),
     classroomConnected: v.boolean(),
     classroomRefreshToken: v.union(v.string(), v.null()),
+    /** Default Google Classroom course id pushes go to. Set during OAuth flow. */
+    classroomCourseId: v.optional(v.string()),
+    /** Course display name for UI. Synced when courseId is set. */
+    classroomCourseName: v.optional(v.string()),
+    /** Google email the teacher authorized — surfaced in settings UI. */
+    classroomGoogleEmail: v.optional(v.string()),
     createdAt: v.number(),
     status: v.union(
       v.literal("trial"),
@@ -157,6 +163,12 @@ export default defineSchema({
       v.literal("failed"),
     ),
     sourceEventIds: v.array(v.id("congressEvents")),
+    /**
+     * Short topic headline for UI / email subject. 8-15 words, written
+     * by the brief generator. Falls back to a smart-truncated brief
+     * when missing (older packets).
+     */
+    headline: v.optional(v.string()),
     teacherBrief: v.string(),
     discussionQuestions: v.array(v.string()),
     exitTicket: v.object({
@@ -289,6 +301,35 @@ export default defineSchema({
   })
     .index("by_recipient_date", ["recipientId", "localDate"])
     .index("by_status_scheduledFor", ["status", "scheduledFor"]),
+
+  /**
+   * Idempotency ledger for Google Classroom pushes. Same shape as
+   * packetDeliveries — unique on (teacherId, packetId) so a teacher
+   * never gets a duplicate Classroom announcement for the same packet
+   * even if the push button is double-clicked or the trigger task
+   * retries.
+   */
+  packetClassroomPushes: defineTable({
+    orgId: v.string(),
+    teacherId: v.id("teachers"),
+    packetId: v.id("packets"),
+    courseId: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("pushed"),
+      v.literal("failed"),
+    ),
+    /** Google Classroom announcement id once pushed. Null until success. */
+    classroomAnnouncementId: v.union(v.string(), v.null()),
+    classroomAlternateLink: v.union(v.string(), v.null()),
+    attempts: v.number(),
+    lastError: v.union(v.string(), v.null()),
+    pushedAt: v.union(v.number(), v.null()),
+    requestedAt: v.number(),
+  })
+    .index("by_teacher_packet", ["teacherId", "packetId"])
+    .index("by_packet", ["packetId"])
+    .index("by_teacher_pushed", ["teacherId", "pushedAt"]),
 
   feedback: defineTable({
     orgId: v.string(),

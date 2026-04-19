@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { requestCustomPacket } from "@/lib/actions/request-custom-packet";
+import { BillPicker } from "./bill-picker";
 
 const FIELD =
   "block w-full rounded-md border border-rule bg-white px-3 py-2 text-sm text-ink placeholder:text-ink-muted focus-visible:border-accent";
@@ -12,12 +13,21 @@ type Props = {
   readonly defaultDate: string;
 };
 
+type SelectedBill = {
+  readonly billRef: string;
+  readonly displayRef: string;
+  readonly title: string;
+  readonly latestActionDate: number;
+};
+
 export function CreateForm({ quotaUsed, quotaMax, defaultDate }: Props) {
   const [state, formAction, isPending] = useActionState(
     requestCustomPacket,
     null,
   );
-  const [billRefs, setBillRefs] = useState("");
+  const [selectedBills, setSelectedBills] = useState<
+    ReadonlyArray<SelectedBill>
+  >([]);
   const [topic, setTopic] = useState("");
 
   const quotaExhausted = quotaUsed >= quotaMax;
@@ -38,19 +48,20 @@ export function CreateForm({ quotaUsed, quotaMax, defaultDate }: Props) {
         />
       </Field>
 
-      <Field
-        label="Specific bills to cover"
-        hint='Comma-separated. Examples: "H.R. 27", "S.J.Res. 16", "H.Res. 10". Up to 6.'
-      >
-        <textarea
-          name="billRefs"
-          rows={2}
-          value={billRefs}
-          onChange={(e) => setBillRefs(e.target.value)}
-          className={FIELD}
-          placeholder="H.R. 27, S. 1552"
-        />
-      </Field>
+      {/* NOT wrapped in <Field> on purpose — Field uses a <label> element
+          which delegates clicks to the first form control inside it. The
+          BillPicker has both a search <input> AND result <button>s, so
+          a label wrapper would swallow the button clicks. */}
+      <div>
+        <p className="mb-2 block text-xs font-semibold tracking-[0.14em] text-ink-muted uppercase">
+          Specific bills to cover (optional)
+        </p>
+        <BillPicker value={selectedBills} onChange={setSelectedBills} />
+        <p className="mt-2 text-xs text-ink-muted">
+          Search semantically — type a topic or a bill ID. Pick up to 6 to
+          seed the packet.
+        </p>
+      </div>
 
       <Field label="Reading level (override)">
         <select
@@ -89,7 +100,11 @@ export function CreateForm({ quotaUsed, quotaMax, defaultDate }: Props) {
         </p>
         <button
           type="submit"
-          disabled={isPending || quotaExhausted || (!topic.trim() && !billRefs.trim())}
+          disabled={
+            isPending ||
+            quotaExhausted ||
+            (!topic.trim() && selectedBills.length === 0)
+          }
           className="inline-flex min-h-[44px] items-center rounded-lg bg-accent px-6 py-2 text-sm font-medium text-cream hover:bg-accent-hover disabled:opacity-50"
         >
           {isPending ? "Queuing…" : "Generate packet"}

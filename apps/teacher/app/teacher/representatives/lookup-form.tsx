@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import type { Doc } from "@hakivo/db";
 import { lookupReps, type RepLookupState } from "@/lib/actions/lookup-reps";
+import { AddressAutocomplete } from "@/components/address-autocomplete";
 
 export function LookupForm({ defaultAddress = "" }: { defaultAddress?: string }) {
   const [state, formAction, isPending] = useActionState<RepLookupState, FormData>(
@@ -13,14 +14,15 @@ export function LookupForm({ defaultAddress = "" }: { defaultAddress?: string })
   return (
     <div className="space-y-8">
       <form action={formAction} className="flex flex-col gap-3 md:flex-row">
-        <input
-          type="text"
-          name="address"
-          required
-          defaultValue={defaultAddress}
-          placeholder="220 East Buffalo Street, Milwaukee, WI 53202"
-          className="flex-1 rounded-md border border-rule bg-white px-4 py-3 text-sm focus-visible:border-accent"
-        />
+        <div className="flex-1">
+          <AddressAutocomplete
+            name="address"
+            required
+            defaultValue={defaultAddress}
+            placeholder="220 East Buffalo Street, Milwaukee, WI 53202"
+            className="w-full rounded-md border border-rule bg-white px-4 py-3 text-sm focus-visible:border-accent"
+          />
+        </div>
         <button
           type="submit"
           disabled={isPending}

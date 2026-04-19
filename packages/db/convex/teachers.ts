@@ -176,3 +176,61 @@ export const create = mutation({
     return id;
   },
 });
+
+/**
+ * Persist Google Classroom OAuth tokens after the OAuth callback.
+ * Called server-side from the /api/google/oauth/callback route after
+ * the auth code is exchanged for tokens. Stores only the refresh token
+ * (long-lived) — access tokens are exchanged on demand per push.
+ */
+export const setClassroomTokens = mutation({
+  args: {
+    teacherId: v.id("teachers"),
+    refreshToken: v.string(),
+    googleEmail: v.string(),
+  },
+  handler: async (ctx, { teacherId, refreshToken, googleEmail }) => {
+    await ctx.db.patch(teacherId, {
+      classroomConnected: true,
+      classroomRefreshToken: refreshToken,
+      classroomGoogleEmail: googleEmail,
+    });
+  },
+});
+
+/**
+ * Set the default Google Classroom course for packet pushes. Picked by
+ * the teacher in /teacher/settings/classroom after OAuth completes.
+ */
+export const setClassroomCourse = mutation({
+  args: {
+    teacherId: v.id("teachers"),
+    courseId: v.string(),
+    courseName: v.string(),
+  },
+  handler: async (ctx, { teacherId, courseId, courseName }) => {
+    await ctx.db.patch(teacherId, {
+      classroomCourseId: courseId,
+      classroomCourseName: courseName,
+    });
+  },
+});
+
+/**
+ * Disconnect Google Classroom — wipes refresh token + course settings.
+ * Used by the "Disconnect" button in settings. Does NOT revoke the
+ * Google-side grant; teachers should also revoke at myaccount.google.com
+ * if they want to fully sever access.
+ */
+export const disconnectClassroom = mutation({
+  args: { teacherId: v.id("teachers") },
+  handler: async (ctx, { teacherId }) => {
+    await ctx.db.patch(teacherId, {
+      classroomConnected: false,
+      classroomRefreshToken: null,
+      classroomCourseId: undefined,
+      classroomCourseName: undefined,
+      classroomGoogleEmail: undefined,
+    });
+  },
+});

@@ -206,6 +206,7 @@ export const create = mutation({
     teacherId: v.id("teachers"),
     packetDate: v.string(),
     sourceEventIds: v.array(v.id("congressEvents")),
+    headline: v.optional(v.string()),
     teacherBrief: v.string(),
     discussionQuestions: v.array(v.string()),
     exitTicket: v.object({
@@ -298,21 +299,25 @@ export const create = mutation({
 });
 
 /**
- * Delete the packet for (teacher, date), if any. Returns the deleted id
- * or null if no row existed. Used by the forceRegenerate path of the
- * generator and by /admin/review when a packet needs to be re-rolled.
+ * Delete ALL packets for (teacher, date). Used by the forceRegenerate
+ * path of the generator and by /admin/review when packets need to be
+ * re-rolled. Plural because teacher-requested packets bypass the
+ * date-based idempotency check, so multiple rows can legitimately
+ * exist for the same date — we have to wipe all of them or
+ * packets.create will find one and short-circuit.
  */
 export const deleteForDate = mutation({
   args: { teacherId: v.id("teachers"), packetDate: v.string() },
   handler: async (ctx, { teacherId, packetDate }) => {
-    const existing = await ctx.db
+    const rows = await ctx.db
       .query("packets")
       .withIndex("by_teacher_date", (q) =>
         q.eq("teacherId", teacherId).eq("packetDate", packetDate),
       )
-      .first();
-    if (!existing) return null;
-    await ctx.db.delete(existing._id);
-    return existing._id;
+      .collect();
+    for (const row of rows) {
+      await ctx.db.delete(row._id);
+    }
+    return { deleted: rows.length };
   },
 });

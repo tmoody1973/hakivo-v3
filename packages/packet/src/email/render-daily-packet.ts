@@ -61,11 +61,35 @@ function formatLongDate(iso: string): string {
   });
 }
 
+/**
+ * Smart-truncate a brief paragraph to a clean headline at sentence-end
+ * or word boundary. Used as fallback for older packets that don't have
+ * the dedicated `headline` field set.
+ */
+function smartTruncate(text: string, maxChars: number): string {
+  const firstPara = text.split(/\n+/)[0] ?? "";
+  // Try first complete sentence
+  const sentenceMatch = firstPara.match(/^[^.!?]+[.!?]/);
+  if (sentenceMatch && sentenceMatch[0].length <= maxChars) {
+    return sentenceMatch[0].trim();
+  }
+  // Word-boundary truncation with ellipsis
+  if (firstPara.length <= maxChars) return firstPara.trim();
+  const sliced = firstPara.slice(0, maxChars);
+  const lastSpace = sliced.lastIndexOf(" ");
+  const stem = lastSpace > 0 ? sliced.slice(0, lastSpace) : sliced;
+  return `${stem.replace(/[\s,;:]+$/, "")}…`;
+}
+
+function packetHeadline(packet: Doc<"packets">, maxChars = 140): string {
+  if (packet.headline && packet.headline.trim()) {
+    return packet.headline.trim();
+  }
+  return smartTruncate(packet.teacherBrief, maxChars);
+}
+
 function deriveSubject(packet: Doc<"packets">): string {
-  const headline =
-    packet.teacherBrief.split(/\n+/)[0]?.slice(0, 80).replace(/[\.\s]+$/, "") ??
-    "Today's Hakivo packet";
-  return `${headline} — ${formatLongDate(packet.packetDate)}`;
+  return `${packetHeadline(packet, 80)} — ${formatLongDate(packet.packetDate)}`;
 }
 
 function escapeHtml(s: string): string {
@@ -117,8 +141,7 @@ export function renderDailyPacketEmail(input: RenderInput): RenderedEmail {
     )
     .join("");
 
-  const headline =
-    packet.teacherBrief.split(/\n+/)[0]?.slice(0, 140) ?? "Today's Packet";
+  const headline = packetHeadline(packet, 140);
 
   const html = `<!doctype html>
 <html lang="en">

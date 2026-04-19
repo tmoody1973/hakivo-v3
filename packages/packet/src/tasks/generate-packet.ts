@@ -63,6 +63,11 @@ const CED_UNIT_QUERIES: Record<string, string> = {
 const PACKET_RESPONSE_SCHEMA = {
   type: "object",
   properties: {
+    headline: {
+      type: "string",
+      description:
+        "A 6-12 word topic headline for the packet, used as the email subject line and on-page title. Concrete and specific (mention the actual policy area or bill, not generic words like 'this week in Congress'). No trailing punctuation.",
+    },
     teacherBrief: {
       type: "string",
       description:
@@ -133,6 +138,7 @@ const PACKET_RESPONSE_SCHEMA = {
     },
   },
   required: [
+    "headline",
     "teacherBrief",
     "discussionQuestions",
     "exitTicket",
@@ -142,6 +148,7 @@ const PACKET_RESPONSE_SCHEMA = {
 };
 
 type GeneratedPacket = {
+  readonly headline: string;
   readonly teacherBrief: string;
   readonly discussionQuestions: readonly string[];
   readonly exitTicket: {
@@ -194,16 +201,16 @@ export const generatePacket = task({
       payload.packetDate ?? new Date().toISOString().slice(0, 10);
 
     if (payload.forceRegenerate) {
-      const deletedPacket = await convex.mutation(api.packets.deleteForDate, {
-        teacherId: payload.teacherId,
-        packetDate,
-      });
+      const { deleted: deletedPackets } = await convex.mutation(
+        api.packets.deleteForDate,
+        { teacherId: payload.teacherId, packetDate },
+      );
       const deletedLedger = await convex.mutation(
         api.packetDeliveries.deleteForDate,
         { teacherId: payload.teacherId, localDate: packetDate },
       );
       logger.log(
-        `forceRegenerate: deleted packet=${deletedPacket} ledger=${deletedLedger} for ${packetDate}`,
+        `forceRegenerate: deleted ${deletedPackets} packet(s), ledger=${deletedLedger} for ${packetDate}`,
       );
     }
 
@@ -272,6 +279,7 @@ export const generatePacket = task({
       teacherId: payload.teacherId,
       packetDate,
       sourceEventIds: [],
+      headline: generated.headline,
       teacherBrief: generated.teacherBrief,
       discussionQuestions: [...generated.discussionQuestions],
       exitTicket: {

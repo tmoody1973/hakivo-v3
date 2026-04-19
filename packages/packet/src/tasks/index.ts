@@ -33,6 +33,11 @@ export type {
   GeneratePacketPdfPayload,
   GeneratePacketPdfResult,
 } from "./generate-packet-pdf";
+export { pushToClassroom } from "./push-to-classroom";
+export type {
+  PushToClassroomPayload,
+  PushToClassroomResult,
+} from "./push-to-classroom";
 export { ingestLegislatorsWeekly } from "./ingest-legislators-weekly";
 export { syncCongressDaily } from "./sync-congress-daily";
 export { syncLawsDaily } from "./sync-laws-daily";

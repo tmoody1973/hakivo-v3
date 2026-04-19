@@ -29,7 +29,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${sourceSerif.variable} ${inter.variable}`}>
-      <body>
+      {/* suppressHydrationWarning is for browser extensions like Grammarly
+          that inject data-* attrs onto <body> after SSR — we don't want
+          that benign noise to show as a real hydration mismatch. */}
+      <body suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>

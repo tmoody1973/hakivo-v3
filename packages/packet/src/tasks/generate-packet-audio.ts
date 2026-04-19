@@ -1,5 +1,5 @@
 import { logger, task } from "@trigger.dev/sdk";
-import { synthesizeSpeech, DEFAULT_HAKIVO_SPEAKERS } from "@hakivo/ai";
+import { synthesizeSpeechChunked, DEFAULT_HAKIVO_SPEAKERS } from "@hakivo/ai";
 import { api, type Id } from "@hakivo/db";
 import { ConvexHttpClient } from "convex/browser";
 import { buildAudioScript } from "../audio/build-audio-script";
@@ -78,13 +78,15 @@ export const generatePacketAudio = task({
       const script = await buildAudioScript({ packet, geminiApiKey: geminiKey });
       logger.log(`Script: ${script.length} chars, ${script.split(/\s+/).length} words`);
 
-      logger.log("Synthesizing audio via gemini-3.1-flash-tts-preview");
-      const tts = await synthesizeSpeech(geminiKey, {
+      logger.log(
+        "Synthesizing audio via gemini-3.1-flash-tts-preview (chunked)",
+      );
+      const tts = await synthesizeSpeechChunked(geminiKey, {
         text: script,
         speakers: DEFAULT_HAKIVO_SPEAKERS,
       });
       logger.log(
-        `Audio synthesized: ${tts.durationSec.toFixed(1)}s, ${(tts.wav.byteLength / 1024).toFixed(1)} KB`,
+        `Audio synthesized: ${tts.durationSec.toFixed(1)}s, ${(tts.wav.byteLength / 1024).toFixed(1)} KB WAV`,
       );
 
       const r2 = createR2Uploader(loadR2ConfigFromEnv());

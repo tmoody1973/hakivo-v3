@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./idempotency": "./src/idempotency.ts",
+    "./integrations/google-classroom": "./src/integrations/google-classroom.ts",
     "./tasks": "./src/tasks/index.ts"
   },
   "scripts": {

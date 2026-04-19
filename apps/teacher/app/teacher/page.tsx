@@ -5,15 +5,19 @@ import { redirect } from "next/navigation";
 import { FeaturedPacket } from "./_components/featured-packet";
 import { PacketHistory } from "./_components/packet-history";
 import { StatusRail } from "./_components/status-rail";
+import { GeneratingBanner } from "./_components/generating-banner";
 
-type SearchParams = Promise<{ teacherId?: string }>;
+type SearchParams = Promise<{
+  teacherId?: string;
+  packetRun?: string;
+}>;
 
 export default async function TeacherHome({
   searchParams,
 }: {
   searchParams: SearchParams;
 }) {
-  const { teacherId: override } = await searchParams;
+  const { teacherId: override, packetRun } = await searchParams;
   const { getToken } = await auth();
 
   const teacher = override
@@ -36,12 +40,15 @@ export default async function TeacherHome({
   const featured = packets[0] ?? null;
 
   return (
-    <div className="grid gap-6 md:grid-cols-[1fr_280px]">
-      <div className="space-y-6">
-        <FeaturedPacket packet={featured} />
-        <PacketHistory packets={packets} />
+    <div className="space-y-6">
+      {packetRun && <GeneratingBanner runId={packetRun} />}
+      <div className="grid gap-6 md:grid-cols-[1fr_280px]">
+        <div className="space-y-6">
+          <FeaturedPacket packet={featured} />
+          <PacketHistory packets={packets} />
+        </div>
+        <StatusRail teacher={teacher} packet={featured} />
       </div>
-      <StatusRail teacher={teacher} packet={featured} />
     </div>
   );
 }

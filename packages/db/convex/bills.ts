@@ -106,17 +106,27 @@ export const listUnenriched = query({
     const notCeremonial = (title: string) =>
       !ceremonial.some((re) => re.test(title));
 
-    // Stream the index newest-first, collect non-enriched non-ceremonial
-    // bills until we hit `take` or exhaust the table. This handles the
-    // case where the top-N already-enriched bills hide unenriched ones
-    // further back in the index.
-    const cursor = ctx.db.query("bills").withIndex("by_latestAction").order("desc");
+    // Convex's per-call read budget is 16MB. Each bill row carries
+    // billText + embedding which average ~6KB — full-table scans easily
+    // exceed the budget once a few thousand bills are enriched and we
+    // have to read past them. Cap the scan window at SCAN_LIMIT docs;
+    // the background enrichment cron picks up where we left off on the
+    // next tick. Long-term fix: add an index on enrichedAt so we can
+    // query directly without scanning past enriched rows.
+    const SCAN_LIMIT = 1500;
+    const cursor = ctx.db
+      .query("bills")
+      .withIndex("by_latestAction")
+      .order("desc");
     const out = [];
+    let scanned = 0;
     for await (const bill of cursor) {
+      scanned += 1;
       if (!bill.enrichedAt && notCeremonial(bill.title)) {
         out.push(bill);
         if (out.length >= take) break;
       }
+      if (scanned >= SCAN_LIMIT) break;
     }
     return out;
   },

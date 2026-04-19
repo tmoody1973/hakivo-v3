@@ -82,9 +82,21 @@ export const sendPacketEmail = task({
       ...(fromAddress && fromAddress !== "" && { fromAddress }),
     });
 
+    // Build the deep link to the packet detail page — the "Push to
+    // Google Classroom" button in the email lands here, where the user
+    // can hit the actual push button (real action requires a Clerk
+    // session, so we link to the page rather than POSTing from email).
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ?? process.env.APP_URL;
+    const classroomPushUrl =
+      appUrl && teacher.classroomConnected && teacher.classroomCourseId
+        ? `${appUrl.replace(/\/$/, "")}/teacher/packets/${payload.packetId}#push-classroom`
+        : undefined;
+
     const { subject, html, text } = renderDailyPacketEmail({
       packet,
       teacherName: teacher.name,
+      ...(classroomPushUrl && { classroomPushUrl }),
     });
 
     let resendId: string;

@@ -1,6 +1,6 @@
 # Hakivo v3
 
-> Civic intelligence platform. Daily packet of US Congressional activity — teacher tier (standards-aligned, soon-to-Google-Classroom) and consumer tier (parent / citizen brief).
+> Civic intelligence platform. Daily packet of US Congressional activity — teacher tier (standards-aligned, push to Google Classroom) and consumer tier (parent / citizen brief — deferred to v3.1).
 
 Greenfield rebuild following v2 hackathon win. See [`CLAUDE.md`](./CLAUDE.md) for project conventions and the approved design doc reference.
 
@@ -10,14 +10,18 @@ Greenfield rebuild following v2 hackathon win. See [`CLAUDE.md`](./CLAUDE.md) fo
 
 Every morning, each registered teacher receives a personalized civic packet built from real Congress.gov bill activity:
 
+- **Topic headline** — 6–12 word topic line written by the brief generator (e.g., "House Considers Broadband Rules and Educator Tax Breaks")
 - **Teacher brief** — 400–600 word neutral summary of bills moving in their wheelhouse, written for AP US Government / APUSH context
 - **5 discussion questions** — open-ended, at the teacher's reading level
 - **5-question exit ticket** — multiple-choice + short-answer, ready to print
-- **Two-host audio briefing** — ~3 min NPR-style dialogue (Maya + Jordan) for prep on the commute
+- **Two-host audio briefing** — ~3 min NPR-style dialogue (Maya + Jordan), chunked at speaker boundaries to avoid Gemini TTS quality drift
 - **Print-ready PDF handout** — US-Letter, room for student writing on the exit ticket
 - **Standards alignment** — C3, AP CED, top-10 state standards
+- **Push to Google Classroom** — one-click button in email + on packet detail page, lands brief + audio + PDF in the teacher's chosen course stream
 
-A 5-criterion **bias-check rubric** (Claude Sonnet primary, Gemini 2.5 Pro fallback) gates every packet. Failures route to a founder-review queue at `/admin/review`.
+A 5-criterion **bias-check rubric** (Claude Sonnet primary, Gemini 2.5 Pro fallback) gates every packet. The rubric reads a `billsCitedSnapshot` of the actual Congress.gov bill data the generator used, so claims like "passed Ways & Means 43-0" are traceable. Failures route to a founder-review queue at `/admin/review`.
+
+Teachers can also create on-demand packets at `/teacher/create` with a semantic bill picker (type a topic, get matching bills as click-to-add chips).
 
 ---
 
@@ -33,10 +37,12 @@ A 5-criterion **bias-check rubric** (Claude Sonnet primary, Gemini 2.5 Pro fallb
 | AI — generation | Gemini 2.5 Pro (brief), Gemini 2.5 Flash (audio script) |
 | AI — bias check | Claude Sonnet 4.6 (Anthropic) |
 | AI — embeddings | Gemini Embedding-001 (768-dim, asymmetric retrieval) |
-| AI — TTS | Gemini 3.1 Flash TTS (multi-speaker) |
-| Email | Resend (verified `updates.hakivo.com` sender) |
+| AI — TTS | Gemini 3.1 Flash TTS (multi-speaker, chunked + tail-buffered) |
+| Email | Resend (verified `updates.hakivo.com` sender, Gmail bulk-sender headers) |
 | Audio + PDF storage | Cloudflare R2 (S3-compatible) |
-| PDF rendering | `@react-pdf/renderer` |
+| PDF rendering | `@react-pdf/renderer` (pure Node, no headless browser) |
+| Address autocomplete | Geocodio (server-side typeahead) |
+| Classroom integration | Google Classroom API v1 (OAuth web flow, REST not SDK) |
 | Bill data | Congress.gov v3 API + custom Convex ingest |
 
 ---
@@ -114,10 +120,15 @@ bias-check-packet
    │   • Pass → continue. Fail → /admin/review queue
    │
    ▼
-generate-packet-audio  (~30s)
+generate-packet-audio  (~90s)
    │   • Gemini 2.5 Flash rewrites brief → Maya/Jordan dialogue script
-   │   • Gemini 3.1 Flash TTS synthesizes 24kHz/16-bit PCM
-   │   • Wrap as WAV, upload to R2, patch packet.audioUrl
+   │     (thinkingBudget: 0 — Flash burns budget thinking otherwise)
+   │   • Split script at speaker-turn boundaries into ≤1200-char chunks
+   │     (Gemini 3.1 TTS quality drifts past ~2 min of generation)
+   │   • Append throwaway tail line to final chunk so any end-clip
+   │     eats the buffer, not the real handoff
+   │   • Synthesize each chunk via Gemini 3.1 Flash TTS multi-speaker
+   │   • Concatenate PCMs, wrap as WAV, upload to R2, patch packet.audioUrl
    │
    ▼
 generate-packet-pdf  (~5s)
@@ -126,12 +137,19 @@ generate-packet-pdf  (~5s)
    │
    ▼
 send-packet-email
-       • Idempotency: ledger keyed (recipientId, localDate)
-       • Resend send with Listen + Print buttons + Gmail bulk-sender headers
-       • Mark packets.deliveredAt + ledger row delivered
+   │   • Idempotency: ledger keyed (recipientId, localDate)
+   │   • Resend send with Listen + Print buttons + Push to Classroom
+   │     deep link + Gmail bulk-sender headers
+   │   • Mark packets.deliveredAt + ledger row delivered
+   │
+   ▼
+push-to-classroom (manual, fired by teacher button)
+       • Idempotent via packetClassroomPushes ledger
+       • Refreshes Google OAuth token, posts announcement with
+         brief + PDF + audio attachments to teacher's default course
 ```
 
-Total ~90s end-to-end per teacher.
+Total ~150s end-to-end per teacher (audio chunking is the bottleneck).
 
 ---
 
@@ -150,6 +168,9 @@ The full annotated set lives in [`.env.local.example`](./.env.local.example). Th
 | `CONGRESS_API_KEY` | Congress.gov bill ingest |
 | `RESEND_API_KEY` + `RESEND_FROM_ADDRESS` | Transactional email |
 | `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` / `R2_PUBLIC_BASE_URL` | Audio + PDF storage |
+| `GEOCODIO_API_KEY` | Address geocoding + autocomplete on `/teacher/representatives` |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Google Classroom OAuth (Web app credential type) |
+| `NEXT_PUBLIC_APP_URL` | Public URL of the teacher app — used to build the "Push to Classroom" deep link in emails |
 | `ADMIN_USER_IDS` | Comma-separated Clerk user ids allowed into `/admin/review` |
 
 ---
@@ -171,6 +192,7 @@ bun run scripts/fire-generate-audio.ts <packetId>
 bun run scripts/fire-generate-pdf.ts <packetId>
 bun run scripts/fire-send-email.ts <packetId>
 bun run scripts/fire-bias-check.ts <packetId>
+bun run scripts/fire-push-classroom.ts <teacherId> <packetId>
 
 # Inspection
 bun run scripts/list-bills.ts
@@ -201,14 +223,17 @@ bun run scripts/bill-stats.ts
 | Asymmetric Gemini retrieval + recency re-rank | shipped |
 | Packet generation (Gemini 2.5 Pro) | shipped |
 | Bias-check rubric (5 criteria, Claude primary) | shipped |
-| Audio briefings (Gemini 3.1 TTS, two-host) | shipped |
+| Audio briefings (Gemini 3.1 TTS, two-host, chunked) | shipped |
 | PDF handout (`@react-pdf/renderer`) | shipped |
 | Email delivery (Resend, verified domain) | shipped |
 | Founder review queue (`/admin/review`) | shipped |
-| Google Classroom push | OAuth verification pending |
+| Custom packet creation (`/teacher/create` w/ semantic bill picker) | shipped |
+| Google Classroom OAuth + push | shipped (Tester mode, ≤100 users; full verification deferred) |
+| Address autocomplete (Geocodio) | shipped |
+| Inline audio player + PDF link on packet detail page | shipped |
 | Stripe billing | deferred to v3.1 |
 | Consumer tier (`/consumer/*`) | deferred to v3.1 |
-| Local-government coverage | scoped post-interview |
+| Local-government coverage (county / city / school board) | scoped post-interview, top v1.1 candidate |
 
 ---
 

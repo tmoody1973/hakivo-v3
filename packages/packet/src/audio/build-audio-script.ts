@@ -33,7 +33,8 @@ CRITICAL RULES:
    Maya: ...
    Jordan: ...
 8. Open with: Maya greeting + framing the date and the central theme. Close with: Jordan handing off to "the full packet in your inbox — exit ticket, primary sources, standards alignment."
-9. Total spoken length target: 550-700 words.
+9. After Jordan's important closing line, ALWAYS add ONE more short throwaway line from Maya (e.g., "Maya: Have a great rest of your week.") — this acts as a TTS tail buffer; if the model clips its audio output near the end (a known Gemini TTS quirk), the throwaway gets clipped instead of the real handoff.
+10. Total spoken length target: 550-700 words.
 
 Output ONLY the script. No preamble, no markdown, no scene direction beyond audio tags.`;
 
@@ -65,7 +66,13 @@ export async function buildAudioScript(args: BuildScriptArgs): Promise<string> {
     ],
     config: {
       temperature: 0.7,
-      maxOutputTokens: 2048,
+      // 2.5 Flash uses thinking tokens that count against maxOutputTokens.
+      // 2048 was getting eaten by thinking, leaving no room for the actual
+      // 550-700-word script (output cut off mid-sentence at ~55 words).
+      // 8192 leaves comfortable room for both. thinkingBudget: 0 disables
+      // thinking entirely — fine here, the task is simple text rewriting.
+      maxOutputTokens: 8192,
+      thinkingConfig: { thinkingBudget: 0 },
     },
   });
 

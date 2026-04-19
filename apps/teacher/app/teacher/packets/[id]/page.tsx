@@ -4,6 +4,38 @@ import { fetchQuery } from "convex/nextjs";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { FeedbackButtons } from "../../_components/feedback-buttons";
+import { PushClassroomButton } from "./push-classroom-button";
+
+/**
+ * Smart headline: prefer the dedicated `headline` field set by the
+ * brief generator, fall back to first complete sentence or
+ * word-boundary truncation of the brief for legacy packets.
+ */
+function packetHeadline(packet: {
+  readonly headline?: string;
+  readonly teacherBrief: string;
+}): string {
+  if (packet.headline && packet.headline.trim()) {
+    return packet.headline.trim();
+  }
+  const firstPara = packet.teacherBrief.split(/\n+/)[0] ?? "";
+  const sentenceMatch = firstPara.match(/^[^.!?]+[.!?]/);
+  if (sentenceMatch && sentenceMatch[0].length <= 160) {
+    return sentenceMatch[0].trim();
+  }
+  if (firstPara.length <= 160) return firstPara.trim();
+  const sliced = firstPara.slice(0, 160);
+  const lastSpace = sliced.lastIndexOf(" ");
+  const stem = lastSpace > 0 ? sliced.slice(0, lastSpace) : sliced;
+  return `${stem.replace(/[\s,;:]+$/, "")}…`;
+}
+
+function formatDuration(seconds: number | undefined): string {
+  if (!seconds || seconds <= 0) return "";
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
 
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
@@ -23,6 +55,11 @@ export default async function PacketDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  // Convex ids are 32-char alphanumeric starting with a letter. Anything
+  // else can't be a real packet — short-circuit to 404 before it hits
+  // the Convex validator (which would bubble a 500 to the user).
+  if (!/^[a-z][a-z0-9]{30,}$/i.test(id)) notFound();
+
   const { getToken } = await auth();
   const token = await getToken({ template: "convex" });
   if (!token) redirect("/sign-in");
@@ -42,6 +79,15 @@ export default async function PacketDetailPage({
   const overallRating =
     myFeedback.find((f) => f.section === "overall")?.rating ?? null;
 
+  const teacher = await fetchQuery(api.teachers.getMe, {}, { token });
+  const existingPush = teacher
+    ? await fetchQuery(
+        api.packetClassroomPushes.getForPacket,
+        { teacherId: teacher._id, packetId: id as Id<"packets"> },
+        { token },
+      )
+    : null;
+
   return (
     <article className="space-y-8">
       <header>
@@ -55,7 +101,7 @@ export default async function PacketDetailPage({
           PACKET · {formatDate(packet.packetDate)}
         </p>
         <h1 className="mt-3 font-serif text-3xl leading-tight md:text-4xl">
-          {(packet.teacherBrief.split(/\n+/)[0] ?? "Packet").slice(0, 160)}
+          {packetHeadline(packet)}
         </h1>
         <div className="mt-4 flex items-center gap-4">
           <span
@@ -73,8 +119,62 @@ export default async function PacketDetailPage({
             packetId={packet._id}
             currentRating={overallRating}
           />
+          {teacher && (
+            <PushClassroomButton
+              packetId={packet._id}
+              connected={teacher.classroomConnected}
+              hasCourse={Boolean(teacher.classroomCourseId)}
+              courseName={teacher.classroomCourseName ?? null}
+              alreadyPushedLink={
+                existingPush?.status === "pushed"
+                  ? existingPush.classroomAlternateLink
+                  : null
+              }
+            />
+          )}
         </div>
       </header>
+
+      {(packet.audioUrl || packet.pdfUrl) && (
+        <section className="rounded-lg border border-rule bg-cream p-5 md:p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">
+            Today's packet
+          </p>
+          {packet.audioUrl && (
+            <div className="mt-3">
+              <p className="mb-2 text-xs text-ink-muted">
+                Two-host briefing
+                {packet.audioDurationSec
+                  ? ` · ${formatDuration(packet.audioDurationSec)}`
+                  : ""}
+              </p>
+              <audio
+                controls
+                preload="metadata"
+                src={packet.audioUrl}
+                className="w-full"
+              >
+                Your browser doesn't support audio playback.{" "}
+                <a href={packet.audioUrl} className="underline">
+                  Download MP3
+                </a>
+              </audio>
+            </div>
+          )}
+          {packet.pdfUrl && (
+            <div className="mt-4">
+              <a
+                href={packet.pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block rounded-lg border border-ink bg-white px-3 py-1.5 text-xs font-medium text-ink hover:bg-cream"
+              >
+                ⬇ Print handout (PDF)
+              </a>
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="rounded-lg border border-rule bg-white/40 p-6 md:p-8">
         <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-muted">

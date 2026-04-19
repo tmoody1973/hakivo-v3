@@ -11,6 +11,8 @@ export {
 } from "./bias-check";
 export {
   synthesizeSpeech,
+  synthesizeSpeechChunked,
+  splitScriptIntoChunks,
   TTS_VOICES,
   DEFAULT_HAKIVO_SPEAKERS,
   type TtsVoice,
