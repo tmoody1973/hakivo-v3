@@ -2,6 +2,44 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 /**
+ * Address-driven federal-rep lookup. The /representatives page hits
+ * Geocodio to resolve an address → state + congressional district, then
+ * calls this to get the 2 senators (state-wide) + 1 house rep (district).
+ *
+ * State legislators land in v3.1 once OpenStates ingest is wired.
+ */
+export const findFederalForAddress = query({
+  args: {
+    state: v.string(),
+    congressionalDistrict: v.optional(v.number()),
+  },
+  handler: async (ctx, { state, congressionalDistrict }) => {
+    const inState = await ctx.db
+      .query("legislators")
+      .withIndex("by_state_chamber", (q) => q.eq("state", state))
+      .collect();
+
+    const senators = inState
+      .filter((l) => l.chamber === "senate")
+      .sort((a, b) => a.lastName.localeCompare(b.lastName));
+
+    const houseMembers = inState.filter((l) => l.chamber === "house");
+    const houseRep =
+      congressionalDistrict !== undefined
+        ? houseMembers.find((l) => l.district === congressionalDistrict) ?? null
+        : null;
+
+    return {
+      state,
+      ...(congressionalDistrict !== undefined && { congressionalDistrict }),
+      senators,
+      houseRep,
+      allHouseInState: houseMembers,
+    };
+  },
+});
+
+/**
  * Legislator data-access layer.
  *
  * upsertBatch is called by the ingest-legislators-weekly Trigger.dev task.
