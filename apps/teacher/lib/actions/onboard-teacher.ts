@@ -4,6 +4,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { api } from "@hakivo/db";
 import { fetchMutation } from "convex/nextjs";
 import { redirect } from "next/navigation";
+import { ensureTeacherSchedule } from "@/lib/scheduling/teacher-schedule";
 
 type OnboardState = { error: string } | null;
 
@@ -52,7 +53,7 @@ export async function onboardTeacher(
   const sharedOrgId = "hakivo-v3";
   void orgId;
 
-  await fetchMutation(
+  const teacherId = await fetchMutation(
     api.teachers.create,
     {
       orgId: sharedOrgId,
@@ -69,6 +70,17 @@ export async function onboardTeacher(
     },
     { token },
   );
+
+  // Attach a daily 5am-local schedule via Trigger.dev. Idempotent —
+  // second onboarding for the same teacher updates the same schedule
+  // via deduplicationKey rather than creating a duplicate.
+  try {
+    await ensureTeacherSchedule({ teacherId, timezone });
+  } catch (err) {
+    // Don't block onboarding if the schedule fails — founder can backfill
+    // via the admin UI or re-save settings. Log for now.
+    console.error("ensureTeacherSchedule failed:", err);
+  }
 
   redirect("/teacher");
 }
