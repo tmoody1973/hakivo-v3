@@ -48,6 +48,18 @@ export default defineSchema({
 
   bills: defineTable({
     orgId: v.string(),
+    /**
+     * "us-fed" for federal Congress bills (default for legacy rows),
+     * "us-wi" / "us-ca" / etc. for state bills via OpenStates.
+     */
+    jurisdiction: v.optional(v.string()),
+    /** State code (e.g., "WI") for state bills. Null for federal. */
+    state: v.optional(v.string()),
+    /** OpenStates canonical id (e.g., "ocd-bill/abc-123") for dedup. */
+    openStatesId: v.optional(v.string()),
+    /** Session string ("2025") for state bills. Federal uses congressNumber. */
+    session: v.optional(v.string()),
+    /** Federal-only. State bills use session + state instead. */
     congressNumber: v.number(),
     billType: v.string(),
     billNumber: v.number(),
@@ -76,6 +88,7 @@ export default defineSchema({
   })
     .index("by_congress", ["congressNumber", "billType", "billNumber"])
     .index("by_latestAction", ["latestActionDate"])
+    .index("by_state_latestAction", ["state", "latestActionDate"])
     .searchIndex("by_title", {
       searchField: "title",
       filterFields: ["congressNumber", "billType", "orgId"],

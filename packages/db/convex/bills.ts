@@ -53,6 +53,53 @@ export const upsertBatch = mutation({
   },
 });
 
+/**
+ * Upsert a single state bill from OpenStates. Dedup key is openStatesId
+ * (the canonical "ocd-bill/<uuid>"); falls back to (state, session,
+ * billType, billNumber) lookup for older rows that pre-date the field.
+ *
+ * State bills share the `bills` table with federal — `jurisdiction`
+ * field discriminates ("us-fed" vs "us-wi" / "us-ca" / etc). State
+ * bills set congressNumber to the session-start year (e.g., 2025) so
+ * the existing by_congress index keeps working as the dedup secondary.
+ */
+export const upsertStateBill = mutation({
+  args: {
+    orgId: v.string(),
+    jurisdiction: v.string(), // "us-wi"
+    state: v.string(), // "WI"
+    openStatesId: v.string(),
+    session: v.string(), // "2025"
+    congressNumber: v.number(), // session-start year
+    billType: v.string(), // "ab" / "sb" / "ajr" / etc.
+    billNumber: v.number(),
+    title: v.string(),
+    introducedDate: v.number(),
+    latestAction: v.string(),
+    latestActionDate: v.number(),
+    topics: v.array(v.string()),
+    summary: v.optional(v.string()),
+    billText: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("bills")
+      .withIndex("by_congress", (q) =>
+        q
+          .eq("congressNumber", args.congressNumber)
+          .eq("billType", args.billType)
+          .eq("billNumber", args.billNumber),
+      )
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, args);
+      return { id: existing._id, status: "updated" as const };
+    }
+    const id = await ctx.db.insert("bills", args);
+    return { id, status: "inserted" as const };
+  },
+});
+
 export const getById = query({
   args: { id: v.id("bills") },
   handler: async (ctx, { id }) => {
@@ -140,11 +187,25 @@ export const searchByKeyword = query({
     text: v.string(),
     congressNumber: v.optional(v.number()),
     billType: v.optional(v.string()),
+    /**
+     * Jurisdiction filter: "federal" → only US Congress bills,
+     * "state" → only state bills (any state), "WI" → state bills
+     * for that specific state, undefined → no filter (default).
+     * Filter is post-search to avoid restricting the search index.
+     */
+    jurisdiction: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, { text, congressNumber, billType, limit }) => {
+  handler: async (
+    ctx,
+    { text, congressNumber, billType, jurisdiction, limit },
+  ) => {
     const take = Math.min(limit ?? 20, 50);
-    return await ctx.db
+    // Overshoot when jurisdiction filter is set so post-filter still
+    // returns ~`take` results when the filter trims aggressively.
+    const fetchLimit = jurisdiction ? Math.min(take * 4, 100) : take;
+
+    const raw = await ctx.db
       .query("bills")
       .withSearchIndex("by_title", (q) => {
         let s = q.search("title", text);
@@ -156,7 +217,19 @@ export const searchByKeyword = query({
         }
         return s;
       })
-      .take(take);
+      .take(fetchLimit);
+
+    if (!jurisdiction) return raw;
+    if (jurisdiction === "federal") {
+      return raw.filter((b) => !b.state).slice(0, take);
+    }
+    if (jurisdiction === "state") {
+      return raw.filter((b) => Boolean(b.state)).slice(0, take);
+    }
+    // Specific state code, e.g., "WI"
+    return raw
+      .filter((b) => b.state === jurisdiction)
+      .slice(0, take);
   },
 });
 
@@ -228,6 +301,36 @@ export const listRecent = query({
  * The bill row must already exist (inserted by ingestCongressDaily).
  * Errors if bill is missing — enrichBill should skip nonexistent refs.
  */
+/**
+ * Stream state bills missing an embedding. Same scan-cap pattern as
+ * listUnenriched to stay under the 16MB read budget — 1500 docs max
+ * per call. Stops once `take` matches are found.
+ */
+export const listStateUnembedded = query({
+  args: {
+    state: v.string(), // "WI"
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { state, limit }) => {
+    const take = limit ?? 100;
+    // Use the by_state_latestAction index so we ONLY scan rows for this
+    // state — federal rows (which have null state and bigger billText)
+    // never get touched. Stays well under the 16MB read budget.
+    const cursor = ctx.db
+      .query("bills")
+      .withIndex("by_state_latestAction", (q) => q.eq("state", state))
+      .order("desc");
+    const out = [];
+    for await (const bill of cursor) {
+      if (!bill.embedding) {
+        out.push(bill);
+        if (out.length >= take) break;
+      }
+    }
+    return out;
+  },
+});
+
 export const enrichOne = mutation({
   args: {
     congressNumber: v.number(),

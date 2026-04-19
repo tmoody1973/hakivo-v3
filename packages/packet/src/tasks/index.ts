@@ -1,5 +1,15 @@
 export { backfillCongressBills } from "./backfill-congress-bills";
 export type { BackfillCongressBillsPayload } from "./backfill-congress-bills";
+export { backfillStateBills } from "./backfill-state-bills";
+export type {
+  BackfillStateBillsPayload,
+  BackfillStateBillsResult,
+} from "./backfill-state-bills";
+export { enrichStateBills } from "./enrich-state-bills";
+export type {
+  EnrichStateBillsPayload,
+  EnrichStateBillsResult,
+} from "./enrich-state-bills";
 export { backfillCongressLaws } from "./backfill-congress-laws";
 export type { BackfillCongressLawsPayload } from "./backfill-congress-laws";
 export { biasCheckPacket } from "./bias-check-packet";

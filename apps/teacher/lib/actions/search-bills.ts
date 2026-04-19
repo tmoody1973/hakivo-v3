@@ -25,19 +25,25 @@ function inferMode(query: string, override?: "keyword" | "semantic"): "keyword" 
 
 export async function searchBills(
   query: string,
-  options?: { mode?: "keyword" | "semantic"; limit?: number },
+  options?: {
+    mode?: "keyword" | "semantic";
+    limit?: number;
+    /** "federal" | "state" | a state code like "WI" | undefined (all). */
+    jurisdiction?: string;
+  },
 ): Promise<BillSearchResult> {
   const text = query.trim();
   if (!text) return { hits: [], mode: "keyword" };
 
   const mode = inferMode(text, options?.mode);
   const limit = options?.limit ?? 25;
+  const jurisdiction = options?.jurisdiction;
 
   if (mode === "keyword") {
     const bills = await fetchQuery(api.bills.searchByKeyword, {
       text,
-      congressNumber: 119,
       limit,
+      ...(jurisdiction && { jurisdiction }),
     });
     return {
       hits: bills.map((bill) => ({ bill })),
@@ -55,12 +61,19 @@ export async function searchBills(
   const hits = await fetchAction(api.bills.searchBySimilarity, {
     queryEmbedding: [...embedding],
     orgId: "hakivo-v3",
-    congressNumber: 119,
-    limit,
+    limit: jurisdiction ? limit * 3 : limit,
   });
 
+  const filtered = jurisdiction
+    ? hits.filter((h) => {
+        if (jurisdiction === "federal") return !h.bill.state;
+        if (jurisdiction === "state") return Boolean(h.bill.state);
+        return h.bill.state === jurisdiction;
+      })
+    : hits;
+
   return {
-    hits: hits.map((h) => ({ bill: h.bill, score: h.score })),
+    hits: filtered.slice(0, limit).map((h) => ({ bill: h.bill, score: h.score })),
     mode: "semantic",
   };
 }

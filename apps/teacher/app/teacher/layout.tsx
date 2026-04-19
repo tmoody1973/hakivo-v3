@@ -47,11 +47,20 @@ export default async function TeacherLayout({
         >
           HAKIVO
         </Link>
-        <div className="text-right text-xs">
-          <div className="text-ink">{displayName}</div>
-          {displaySchool ? (
-            <div className="text-ink-muted">{displaySchool}</div>
-          ) : null}
+        <div className="flex items-center gap-4 text-xs">
+          <Link
+            href="/personal"
+            className="text-ink-muted hover:text-ink"
+            title="Switch to personal view"
+          >
+            Personal view →
+          </Link>
+          <div className="text-right">
+            <div className="text-ink">{displayName}</div>
+            {displaySchool ? (
+              <div className="text-ink-muted">{displaySchool}</div>
+            ) : null}
+          </div>
         </div>
       </header>
       <div className="mx-auto grid max-w-7xl md:grid-cols-[220px_1fr]">

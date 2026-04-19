@@ -13,9 +13,13 @@ async function runSearch(
 ): Promise<SearchState> {
   const query = (formData.get("query") as string | null)?.trim() ?? "";
   const mode = (formData.get("mode") as string | null) === "keyword" ? "keyword" : "semantic";
+  const jurisdictionRaw = (formData.get("jurisdiction") as string | null) ?? "";
   if (!query) return null;
   const { searchBills } = await import("@/lib/actions/search-bills");
-  const result = await searchBills(query, { mode });
+  const result = await searchBills(query, {
+    mode,
+    ...(jurisdictionRaw && { jurisdiction: jurisdictionRaw }),
+  });
   return { query, mode: result.mode, hits: [...result.hits] };
 }
 
@@ -32,6 +36,17 @@ export function SearchForm({ initialMode = "semantic" }: { initialMode?: "keywor
           placeholder='e.g., "voting rights" or "H.R. 27"'
           className="flex-1 rounded-md border border-rule bg-white px-4 py-3 text-sm focus-visible:border-accent"
         />
+        <select
+          name="jurisdiction"
+          defaultValue=""
+          className="rounded-md border border-rule bg-white px-3 py-3 text-sm"
+          title="Filter by jurisdiction"
+        >
+          <option value="">All</option>
+          <option value="federal">Federal</option>
+          <option value="state">All states</option>
+          <option value="WI">Wisconsin</option>
+        </select>
         <select
           name="mode"
           defaultValue={initialMode}
@@ -100,6 +115,15 @@ function ResultsList({
             >
               <div className="flex items-baseline justify-between gap-3">
                 <h3 className="font-medium text-ink">
+                  <span
+                    className={`mr-2 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                      bill.state
+                        ? "bg-accent/10 text-accent"
+                        : "bg-ink/10 text-ink-muted"
+                    }`}
+                  >
+                    {bill.state ?? "FED"}
+                  </span>
                   {bill.billType.toUpperCase()} {bill.billNumber}
                   <span className="ml-2 text-xs text-ink-muted">
                     · {new Date(bill.latestActionDate).toLocaleDateString()}
