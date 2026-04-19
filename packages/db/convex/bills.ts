@@ -78,6 +78,44 @@ export const getByRef = query({
   },
 });
 
+/**
+ * List bills that have no embedding yet. Used by the enrichBillsBackground
+ * task to drain the backfill queue in ~50-bill chunks per run.
+ *
+ * Excludes ceremonial bills whose titles match a known pattern — honoring
+ * anniversaries, naming post offices, recognizing achievements, etc.
+ * These are real bills but don't justify Gemini embedding tokens.
+ */
+export const listUnenriched = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit }) => {
+    const take = limit ?? 50;
+    const candidates = await ctx.db
+      .query("bills")
+      .withIndex("by_latestAction")
+      .order("desc")
+      .take(take * 4);
+    const ceremonial = [
+      /^reserved for/i,
+      /^to name a post office/i,
+      /^to designate .* (post office|federal building|courthouse|facility)/i,
+      /^honoring the life /i,
+      /^honoring the /i,
+      /^recognizing the .* anniversary/i,
+      /^recognizing the /i,
+      /^expressing (support|gratitude|appreciation|condolences)/i,
+      /^commemorating/i,
+      /^celebrating/i,
+    ];
+    const notCeremonial = (title: string) =>
+      !ceremonial.some((re) => re.test(title));
+    return candidates
+      .filter((b) => !b.enrichedAt)
+      .filter((b) => notCeremonial(b.title))
+      .slice(0, take);
+  },
+});
+
 export const listRecent = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) => {

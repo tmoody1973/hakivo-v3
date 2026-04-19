@@ -12,6 +12,9 @@ export {
   type BillListItem,
   type BillType,
   type CongressClient,
+  type LawDetail,
+  type LawListItem,
+  type LawType,
 } from "./client";
 
 export { fetchCurrentLegislators, type Legislator } from "./legislators";

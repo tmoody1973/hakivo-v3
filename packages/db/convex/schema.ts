@@ -303,4 +303,43 @@ export default defineSchema({
     .index("by_state_chamber", ["state", "chamber"])
     .index("by_chamber_state", ["chamber", "state"])
     .index("by_orgId", ["orgId"]),
+
+  /**
+   * Enacted public and private laws. Sourced from Congress.gov /law/{congress}.
+   * Each law links back to its originating bill via originBillRef.
+   *
+   * Civic-tech primitive: "bill became law" is a stronger signal than
+   * "bill was introduced" — teachers want to know what actually passed
+   * and affects constituents.
+   */
+  laws: defineTable({
+    orgId: v.string(),
+    congressNumber: v.number(),
+    lawType: v.union(v.literal("pub"), v.literal("priv")),
+    lawNumber: v.number(),
+    title: v.string(),
+    signedDate: v.string(),
+    originBillRef: v.optional(v.string()),
+    billType: v.optional(v.string()),
+    billNumber: v.optional(v.number()),
+    text: v.optional(v.string()),
+    textUrl: v.optional(v.string()),
+    summary: v.optional(v.string()),
+    aiSummary: v.optional(v.string()),
+    topics: v.array(v.string()),
+    embedding: v.optional(v.array(v.float64())),
+    enrichedAt: v.optional(v.number()),
+  })
+    .index("by_congress_type_number", [
+      "congressNumber",
+      "lawType",
+      "lawNumber",
+    ])
+    .index("by_signedDate", ["signedDate"])
+    .index("by_originBill", ["originBillRef"])
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
+      dimensions: 768,
+      filterFields: ["orgId", "congressNumber"],
+    }),
 });

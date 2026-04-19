@@ -78,11 +78,37 @@ export type BillTextVersion = {
   }[];
 };
 
+export type LawType = "pub" | "priv";
+
+export type LawListItem = {
+  readonly congress: number;
+  readonly type: "public" | "private";
+  readonly number: string;
+  readonly title: string;
+  readonly updateDate: string;
+};
+
+export type LawDetail = {
+  readonly congress: number;
+  readonly number: string;
+  readonly type: "public" | "private";
+  readonly title: string;
+  readonly laws: readonly { readonly number: string; readonly type: string }[];
+  readonly introducedDate: string;
+  readonly latestAction: { readonly actionDate: string; readonly text: string };
+  readonly updateDate: string;
+  readonly originChamber?: string;
+  readonly committees?: { readonly url: string };
+  readonly sponsors?: readonly { readonly bioguideId: string; readonly fullName: string }[];
+};
+
 export interface CongressClient {
   readonly listRecentBills: (args: {
     readonly congress: number;
     readonly limit?: number;
     readonly offset?: number;
+    readonly fromDateTime?: string;
+    readonly toDateTime?: string;
   }) => Promise<readonly BillListItem[]>;
   readonly getBill: (args: {
     readonly congress: number;
@@ -126,6 +152,18 @@ export interface CongressClient {
     readonly type: string;
     readonly number: number;
   }) => Promise<{ readonly text: string; readonly source: string } | null>;
+  readonly listLaws: (args: {
+    readonly congress: number;
+    readonly lawType?: LawType;
+    readonly limit?: number;
+    readonly offset?: number;
+    readonly fromDateTime?: string;
+  }) => Promise<readonly LawListItem[]>;
+  readonly getLaw: (args: {
+    readonly congress: number;
+    readonly lawType: LawType;
+    readonly lawNumber: number;
+  }) => Promise<LawDetail | null>;
 }
 
 export class CongressApiError extends Error {
@@ -174,13 +212,28 @@ export function createCongressClient(apiKey: string): CongressClient {
   }
 
   return {
-    async listRecentBills({ congress, limit = 50, offset = 0 }) {
+    async listRecentBills({
+      congress,
+      limit = 50,
+      offset = 0,
+      fromDateTime,
+      toDateTime,
+    }: {
+      readonly congress: number;
+      readonly limit?: number;
+      readonly offset?: number;
+      readonly fromDateTime?: string;
+      readonly toDateTime?: string;
+    }) {
       type Response = { bills: readonly BillListItem[] };
-      const data = await request<Response>(`/bill/${congress}`, {
+      const params: Record<string, string | number> = {
         limit,
         offset,
         sort: "updateDate+desc",
-      });
+      };
+      if (fromDateTime !== undefined) params.fromDateTime = fromDateTime;
+      if (toDateTime !== undefined) params.toDateTime = toDateTime;
+      const data = await request<Response>(`/bill/${congress}`, params);
       return data.bills;
     },
 
@@ -243,6 +296,34 @@ export function createCongressClient(apiKey: string): CongressClient {
         `/bill/${congress}/${type}/${number}/text`,
       );
       return data.textVersions;
+    },
+
+    async listLaws({ congress, lawType, limit = 250, offset = 0, fromDateTime }) {
+      type Response = { bills: readonly LawListItem[] };
+      const path = lawType
+        ? `/law/${congress}/${lawType}`
+        : `/law/${congress}`;
+      const params: Record<string, string | number> = {
+        limit,
+        offset,
+        sort: "updateDate+desc",
+      };
+      if (fromDateTime !== undefined) params.fromDateTime = fromDateTime;
+      const data = await request<Response>(path, params);
+      return data.bills;
+    },
+
+    async getLaw({ congress, lawType, lawNumber }) {
+      type Response = { bill: LawDetail | null };
+      try {
+        const data = await request<Response>(
+          `/law/${congress}/${lawType}/${lawNumber}`,
+        );
+        return data.bill;
+      } catch (err) {
+        if (err instanceof CongressApiError && err.status === 404) return null;
+        throw err;
+      }
     },
 
     async getLatestBillText({ congress, type, number }) {
