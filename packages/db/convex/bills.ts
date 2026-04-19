@@ -90,11 +90,6 @@ export const listUnenriched = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) => {
     const take = limit ?? 50;
-    const candidates = await ctx.db
-      .query("bills")
-      .withIndex("by_latestAction")
-      .order("desc")
-      .take(take * 4);
     const ceremonial = [
       /^reserved for/i,
       /^to name a post office/i,
@@ -109,10 +104,20 @@ export const listUnenriched = query({
     ];
     const notCeremonial = (title: string) =>
       !ceremonial.some((re) => re.test(title));
-    return candidates
-      .filter((b) => !b.enrichedAt)
-      .filter((b) => notCeremonial(b.title))
-      .slice(0, take);
+
+    // Stream the index newest-first, collect non-enriched non-ceremonial
+    // bills until we hit `take` or exhaust the table. This handles the
+    // case where the top-N already-enriched bills hide unenriched ones
+    // further back in the index.
+    const cursor = ctx.db.query("bills").withIndex("by_latestAction").order("desc");
+    const out = [];
+    for await (const bill of cursor) {
+      if (!bill.enrichedAt && notCeremonial(bill.title)) {
+        out.push(bill);
+        if (out.length >= take) break;
+      }
+    }
+    return out;
   },
 });
 
