@@ -128,6 +128,20 @@ export const setAudio = mutation({
 });
 
 /**
+ * Persist PDF handout URL after Trigger task uploads to R2. Called by
+ * generatePacketPdf.
+ */
+export const setPdf = mutation({
+  args: {
+    id: v.id("packets"),
+    pdfUrl: v.string(),
+  },
+  handler: async (ctx, { id, pdfUrl }) => {
+    await ctx.db.patch(id, { pdfUrl });
+  },
+});
+
+/**
  * Founder-queue operation: approve or reject a packet that the auto
  * bias check flagged. On approve, status advances to delivered. On reject,
  * status lands at failed so the packet never ships.

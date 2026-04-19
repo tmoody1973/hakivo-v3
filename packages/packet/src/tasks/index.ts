@@ -28,6 +28,11 @@ export type {
   GeneratePacketAudioPayload,
   GeneratePacketAudioResult,
 } from "./generate-packet-audio";
+export { generatePacketPdf } from "./generate-packet-pdf";
+export type {
+  GeneratePacketPdfPayload,
+  GeneratePacketPdfResult,
+} from "./generate-packet-pdf";
 export { ingestLegislatorsWeekly } from "./ingest-legislators-weekly";
 export { syncCongressDaily } from "./sync-congress-daily";
 export { syncLawsDaily } from "./sync-laws-daily";

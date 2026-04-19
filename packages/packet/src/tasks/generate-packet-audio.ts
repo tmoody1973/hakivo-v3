@@ -7,7 +7,7 @@ import {
   createR2Uploader,
   loadR2ConfigFromEnv,
 } from "../audio/r2-client";
-import { sendPacketEmail } from "./send-packet-email";
+import { generatePacketPdf } from "./generate-packet-pdf";
 
 /**
  * Generate the audio briefing for a packet, upload to R2, patch the
@@ -15,13 +15,14 @@ import { sendPacketEmail } from "./send-packet-email";
  * carries the audio link.
  *
  * Pipeline position:
- *   bias-check (pass) → generate-packet-audio → send-packet-email
+ *   bias-check (pass) → generate-packet-audio → generate-packet-pdf
+ *     → send-packet-email
  *
- * Failure semantics: if TTS fails, we still chain send-packet-email
+ * Failure semantics: if TTS fails, we still chain generate-packet-pdf
  * (audio is supplementary, not blocking — Marissa's interview was clear
  * the email + brief is the primary deliverable). We log the error and
  * leave audioUrl null. Trigger.dev's retry config wraps the TTS call
- * itself but we eat the final failure so email always ships.
+ * itself but we eat the final failure so the chain always advances.
  */
 
 export type GeneratePacketAudioPayload = {
@@ -64,7 +65,7 @@ export const generatePacketAudio = task({
 
     if (packet.audioUrl) {
       logger.log(`Packet ${payload.packetId} already has audioUrl — skipping`);
-      await sendPacketEmail.trigger({ packetId: payload.packetId });
+      await generatePacketPdf.trigger({ packetId: payload.packetId });
       return {
         packetId: payload.packetId,
         status: "skipped_existing",
@@ -102,8 +103,8 @@ export const generatePacketAudio = task({
         audioDurationSec: Math.round(tts.durationSec),
       });
 
-      await sendPacketEmail.trigger({ packetId: payload.packetId });
-      logger.log(`Chained send-packet-email for ${payload.packetId}`);
+      await generatePacketPdf.trigger({ packetId: payload.packetId });
+      logger.log(`Chained generate-packet-pdf for ${payload.packetId}`);
 
       return {
         packetId: payload.packetId,
@@ -115,8 +116,8 @@ export const generatePacketAudio = task({
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error(`Audio generation failed: ${message}`);
-      // Audio is supplementary — chain email anyway so the packet ships.
-      await sendPacketEmail.trigger({ packetId: payload.packetId });
+      // Audio is supplementary — chain pdf anyway so the packet ships.
+      await generatePacketPdf.trigger({ packetId: payload.packetId });
       return {
         packetId: payload.packetId,
         status: "failed",

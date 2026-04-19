@@ -158,15 +158,28 @@ export function renderDailyPacketEmail(input: RenderInput): RenderedEmail {
         </tr>
 
         ${
-          packet.audioUrl
+          packet.audioUrl || packet.pdfUrl
             ? `<tr>
           <td style="padding:8px 28px 24px 28px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${COLORS.cream};border:1px solid ${COLORS.rule};">
               <tr>
                 <td style="padding:14px 16px;">
-                  <p style="margin:0 0 6px 0;font-family:${SANS};font-size:11px;letter-spacing:2px;color:${COLORS.inkMuted};text-transform:uppercase;">Listen — ${formatAudioDuration(packet.audioDurationSec)}</p>
-                  <a href="${packet.audioUrl}" style="display:inline-block;padding:8px 16px;background:${COLORS.accent};color:${COLORS.accentText};font-family:${SANS};font-size:13px;font-weight:500;text-decoration:none;border-radius:8px;">▸ Play briefing</a>
-                  <p style="margin:6px 0 0 0;font-family:${SANS};font-size:11px;color:${COLORS.inkMuted};">Two-host briefing — folds nicely into a Sunday-evening prep window.</p>
+                  <p style="margin:0 0 8px 0;font-family:${SANS};font-size:11px;letter-spacing:2px;color:${COLORS.inkMuted};text-transform:uppercase;">Today's Packet</p>
+                  ${
+                    packet.audioUrl
+                      ? `<a href="${packet.audioUrl}" style="display:inline-block;padding:8px 16px;margin:0 8px 4px 0;background:${COLORS.accent};color:${COLORS.accentText};font-family:${SANS};font-size:13px;font-weight:500;text-decoration:none;border-radius:8px;">▸ Listen ${formatAudioDuration(packet.audioDurationSec)}</a>`
+                      : ""
+                  }
+                  ${
+                    packet.pdfUrl
+                      ? `<a href="${packet.pdfUrl}" style="display:inline-block;padding:8px 16px;margin:0 0 4px 0;background:#FFFFFF;color:${COLORS.ink};border:1px solid ${COLORS.ink};font-family:${SANS};font-size:13px;font-weight:500;text-decoration:none;border-radius:8px;">⬇ Print handout</a>`
+                      : ""
+                  }
+                  ${
+                    packet.audioUrl
+                      ? `<p style="margin:8px 0 0 0;font-family:${SANS};font-size:11px;color:${COLORS.inkMuted};">Two-host briefing for prep · printable handout for class.</p>`
+                      : `<p style="margin:8px 0 0 0;font-family:${SANS};font-size:11px;color:${COLORS.inkMuted};">Print-ready handout with exit ticket.</p>`
+                  }
                 </td>
               </tr>
             </table>
@@ -257,7 +270,8 @@ export function renderDailyPacketEmail(input: RenderInput): RenderedEmail {
     packet.audioUrl
       ? `LISTEN (${formatAudioDuration(packet.audioDurationSec)}): ${packet.audioUrl}`
       : "",
-    packet.audioUrl ? "" : "",
+    packet.pdfUrl ? `PRINT HANDOUT: ${packet.pdfUrl}` : "",
+    packet.audioUrl || packet.pdfUrl ? "" : "",
     "DISCUSSION QUESTIONS",
     ...packet.discussionQuestions.map((q, i) => `${i + 1}. ${q}`),
     "",
