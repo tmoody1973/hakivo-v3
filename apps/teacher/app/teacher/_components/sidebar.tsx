@@ -8,6 +8,7 @@ type NavItem = {
 
 const NAV: readonly NavItem[] = [
   { label: "Today's Packet", href: "/teacher" },
+  { label: "Create packet", href: "/teacher/create" },
   { label: "History", href: "/teacher/history" },
   { label: "Hakivo Studio", href: "/teacher/studio", badge: "coming" },
   { label: "Settings", href: "/teacher/settings" },

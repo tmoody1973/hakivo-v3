@@ -27,6 +27,14 @@ import { biasCheckPacket } from "./bias-check-packet";
 export type GeneratePacketPayload = {
   readonly teacherId: Id<"teachers">;
   readonly packetDate?: string;
+  /** Free-text topic override — replaces CED-unit query when set */
+  readonly customTopic?: string;
+  /** Bills to seed the context with (in addition to vector search) */
+  readonly targetBillRefs?: readonly string[];
+  /** Reading level override for this packet only */
+  readonly readingLevelOverride?: string;
+  /** Who requested this — defaults to auto_schedule */
+  readonly requestedBy?: "auto_schedule" | "teacher_request";
 };
 
 export type GeneratePacketResult = {
@@ -183,12 +191,13 @@ export const generatePacket = task({
     const packetDate =
       payload.packetDate ?? new Date().toISOString().slice(0, 10);
 
+    // Precedence:
+    //   1. Explicit customTopic from a teacher request
+    //   2. CED unit topic vocabulary if teacher.currentUnit is set
+    //   3. Fallback: substantive pending legislation vocabulary
     const unitQuery =
+      payload.customTopic ??
       (teacher.currentUnit && CED_UNIT_QUERIES[teacher.currentUnit]) ??
-      // Sharper than "general civic interest" — aimed at substantive
-      // pending policy with recent legislative motion, not organizational
-      // resolutions. Broad policy vocabulary so vector search can find a
-      // high-recall set before the recency re-rank.
       "Substantive pending federal legislation with recent committee action, floor votes, or significant sponsor activity. Concrete policy proposals affecting citizens: healthcare, education, civil rights, economy, technology, environment, transportation, voting, immigration, national security.";
     const embeddingQuery = `${unitQuery}. Teacher courses: ${teacher.courses.join(", ")}. State: ${teacher.state ?? "US"}.`;
     logger.log("Embedding query (RETRIEVAL_QUERY)", { embeddingQuery });
@@ -246,6 +255,14 @@ export const generatePacket = task({
           : null,
         stateStandards: [...generated.standardsAlignment.stateStandards],
       },
+      requestedBy: payload.requestedBy ?? "auto_schedule",
+      ...(payload.customTopic !== undefined && { customTopic: payload.customTopic }),
+      ...(payload.targetBillRefs !== undefined && {
+        targetBillRefs: [...payload.targetBillRefs],
+      }),
+      ...(payload.readingLevelOverride !== undefined && {
+        readingLevelOverride: payload.readingLevelOverride,
+      }),
       qualityChecks: {
         readingLevelOk: true,
         factCheckOk: true,

@@ -24,6 +24,28 @@ export const getById = query({
 });
 
 /**
+ * Count teacher-requested packets today. Supports the 5/day quota
+ * enforced by the /teacher/create server action.
+ *
+ * Today is defined as the teacher's UTC packetDate — teachers in very
+ * late-evening timezones may hit quota boundaries slightly earlier than
+ * their local-day rollover. Good enough for v3.0.
+ */
+export const countTeacherRequestsToday = query({
+  args: { teacherId: v.id("teachers"), date: v.string() },
+  handler: async (ctx, { teacherId, date }) => {
+    const rows = await ctx.db
+      .query("packets")
+      .withIndex("by_teacher_date", (q) =>
+        q.eq("teacherId", teacherId).eq("packetDate", date),
+      )
+      .filter((q) => q.eq(q.field("requestedBy"), "teacher_request"))
+      .collect();
+    return rows.length;
+  },
+});
+
+/**
  * Patch the full bias-check result onto a packet. Called by the
  * bias-check-packet Trigger.dev task after Claude/Gemini scores the packet.
  *
@@ -177,15 +199,26 @@ export const create = mutation({
       biasScore: v.number(),
       humanReviewed: v.boolean(),
     }),
+    requestedBy: v.optional(
+      v.union(v.literal("auto_schedule"), v.literal("teacher_request")),
+    ),
+    customTopic: v.optional(v.string()),
+    targetBillRefs: v.optional(v.array(v.string())),
+    readingLevelOverride: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db
-      .query("packets")
-      .withIndex("by_teacher_date", (q) =>
-        q.eq("teacherId", args.teacherId).eq("packetDate", args.packetDate),
-      )
-      .first();
-    if (existing) return existing._id;
+    // Auto-scheduled packets idempotent per (teacher, date) — cron
+    // retry returns the existing row. Teacher-requested packets skip
+    // this check so repeated /teacher/create submissions create new rows.
+    if (args.requestedBy !== "teacher_request") {
+      const existing = await ctx.db
+        .query("packets")
+        .withIndex("by_teacher_date", (q) =>
+          q.eq("teacherId", args.teacherId).eq("packetDate", args.packetDate),
+        )
+        .first();
+      if (existing) return existing._id;
+    }
 
     const id = await ctx.db.insert("packets", {
       ...args,

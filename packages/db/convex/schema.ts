@@ -210,10 +210,21 @@ export default defineSchema({
     }),
     generatedAt: v.number(),
     deliveredAt: v.union(v.number(), v.null()),
+    /** How this packet was requested — auto cron vs teacher on-demand */
+    requestedBy: v.optional(
+      v.union(v.literal("auto_schedule"), v.literal("teacher_request")),
+    ),
+    /** Teacher's topic override (free text) — replaces CED-unit query */
+    customTopic: v.optional(v.string()),
+    /** Bills explicitly requested — "congress-billType-billNumber" refs */
+    targetBillRefs: v.optional(v.array(v.string())),
+    /** Reading level override for this packet */
+    readingLevelOverride: v.optional(v.string()),
   })
     .index("by_teacher_date", ["teacherId", "packetDate"])
     .index("by_status", ["status"])
-    .index("by_orgId_date", ["orgId", "packetDate"]),
+    .index("by_orgId_date", ["orgId", "packetDate"])
+    .index("by_teacher_requestedBy", ["teacherId", "requestedBy"]),
 
   /**
    * Idempotency ledger for packet delivery.
