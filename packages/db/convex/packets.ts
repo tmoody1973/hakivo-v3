@@ -101,6 +101,17 @@ export const setBiasCheck = mutation({
 });
 
 /**
+ * Mark a packet as actually delivered (email sent). Called by the
+ * sendPacketEmail task after Resend confirms the send.
+ */
+export const markDelivered = mutation({
+  args: { id: v.id("packets") },
+  handler: async (ctx, { id }) => {
+    await ctx.db.patch(id, { deliveredAt: Date.now() });
+  },
+});
+
+/**
  * Founder-queue operation: approve or reject a packet that the auto
  * bias check flagged. On approve, status advances to delivered. On reject,
  * status lands at failed so the packet never ships.
