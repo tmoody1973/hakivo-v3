@@ -1,5 +1,6 @@
-import { mutation, query } from "./_generated/server";
+import { action, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 
 /**
  * Bills data-access layer.
@@ -118,6 +119,84 @@ export const listUnenriched = query({
       }
     }
     return out;
+  },
+});
+
+/**
+ * Keyword search on bill titles via Convex full-text search index.
+ */
+export const searchByKeyword = query({
+  args: {
+    text: v.string(),
+    congressNumber: v.optional(v.number()),
+    billType: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { text, congressNumber, billType, limit }) => {
+    const take = Math.min(limit ?? 20, 50);
+    return await ctx.db
+      .query("bills")
+      .withSearchIndex("by_title", (q) => {
+        let s = q.search("title", text);
+        if (congressNumber !== undefined) {
+          s = s.eq("congressNumber", congressNumber);
+        }
+        if (billType !== undefined) {
+          s = s.eq("billType", billType);
+        }
+        return s;
+      })
+      .take(take);
+  },
+});
+
+/**
+ * Semantic search via the by_embedding vector index. Caller passes a
+ * RETRIEVAL_QUERY-typed embedding. Returns hydrated bills + match scores.
+ *
+ * Vector index filter is single-expression (no AND). We filter on orgId
+ * only at the index level; congressNumber filter happens post-fetch.
+ * No recency re-rank — caller decides whether to weight freshness.
+ */
+import type { Doc } from "./_generated/dataModel";
+
+export type SimilaritySearchHit = {
+  readonly bill: Doc<"bills">;
+  readonly score: number;
+};
+
+export const searchBySimilarity = action({
+  args: {
+    queryEmbedding: v.array(v.float64()),
+    orgId: v.string(),
+    congressNumber: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args): Promise<readonly SimilaritySearchHit[]> => {
+    const take = Math.min(args.limit ?? 20, 50);
+    const results = await ctx.vectorSearch("bills", "by_embedding", {
+      vector: args.queryEmbedding,
+      limit: take * 2, // overshoot to allow post-filter on congressNumber
+      filter: (q) => q.eq("orgId", args.orgId),
+    });
+    const bills = await Promise.all(
+      results.map(async ({ _id, _score }) => {
+        const bill: Doc<"bills"> | null = await ctx.runQuery(
+          api.bills.getById,
+          { id: _id },
+        );
+        return bill ? { bill, score: _score } : null;
+      }),
+    );
+    const hits = bills.filter(
+      (b): b is SimilaritySearchHit => b !== null,
+    );
+    if (args.congressNumber !== undefined) {
+      return hits
+        .filter((h) => h.bill.congressNumber === args.congressNumber)
+        .slice(0, take);
+    }
+    return hits.slice(0, take);
   },
 });
 

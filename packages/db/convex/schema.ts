@@ -70,6 +70,10 @@ export default defineSchema({
   })
     .index("by_congress", ["congressNumber", "billType", "billNumber"])
     .index("by_latestAction", ["latestActionDate"])
+    .searchIndex("by_title", {
+      searchField: "title",
+      filterFields: ["congressNumber", "billType", "orgId"],
+    })
     .vectorIndex("by_embedding", {
       vectorField: "embedding",
       dimensions: 768,

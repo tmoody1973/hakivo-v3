@@ -1,19 +1,21 @@
 import { query } from "./_generated/server";
 
 /**
- * Full-table counts across bills — can't rely on client-side .listRecent
- * with a limit because we now have ~15K rows. Used by scripts/bill-stats.ts.
+ * Sampled coverage estimate. Loading 15K full bill rows (each ~6KB
+ * once embedded) blows past Convex's 16MB per-query read budget.
+ * We sample the most-recently-actioned 500 and extrapolate.
+ *
+ * For exact counts use the dashboard or a paginated client-side scan.
  */
 export const enrichmentCoverage = query({
   args: {},
   handler: async (ctx) => {
-    let total = 0;
-    let withEmbedding = 0;
-    let withBillText = 0;
-    let withSummary = 0;
-    let withActions = 0;
-    let ceremonial = 0;
-    let enriched = 0;
+    const SAMPLE = 500;
+    const sample = await ctx.db
+      .query("bills")
+      .withIndex("by_latestAction")
+      .order("desc")
+      .take(SAMPLE);
 
     const ceremonialRe = [
       /^reserved for/i,
@@ -26,8 +28,12 @@ export const enrichmentCoverage = query({
       /^celebrating /i,
     ];
 
-    for await (const bill of ctx.db.query("bills")) {
-      total += 1;
+    let withEmbedding = 0;
+    let withBillText = 0;
+    let withSummary = 0;
+    let enriched = 0;
+    let ceremonial = 0;
+    for (const bill of sample) {
       if (bill.embedding) withEmbedding += 1;
       if (bill.billText) withBillText += 1;
       if (bill.summary) withSummary += 1;
@@ -35,19 +41,17 @@ export const enrichmentCoverage = query({
       if (ceremonialRe.some((re) => re.test(bill.title))) ceremonial += 1;
     }
 
-    // Actions count via separate scan
-    for await (const _ of ctx.db.query("billActions")) {
-      withActions += 1;
-    }
-
     return {
-      total,
-      withEmbedding,
-      withBillText,
-      withSummary,
-      enriched,
-      ceremonial,
-      billActionsRowCount: withActions,
+      sampleSize: sample.length,
+      sampleEnriched: enriched,
+      sampleEmbedded: withEmbedding,
+      sampleBillText: withBillText,
+      sampleSummary: withSummary,
+      sampleCeremonial: ceremonial,
+      estimatedEnrichedTotal: Math.round((enriched / sample.length) * 14_995),
+      estimatedEmbeddedTotal: Math.round(
+        (withEmbedding / sample.length) * 14_995,
+      ),
     };
   },
 });
