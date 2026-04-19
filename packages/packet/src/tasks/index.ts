@@ -10,6 +10,11 @@ export type {
   EnrichStateBillsPayload,
   EnrichStateBillsResult,
 } from "./enrich-state-bills";
+export { fetchPolicyNews } from "./fetch-policy-news";
+export type {
+  FetchPolicyNewsPayload,
+  FetchPolicyNewsResult,
+} from "./fetch-policy-news";
 export { backfillCongressLaws } from "./backfill-congress-laws";
 export type { BackfillCongressLawsPayload } from "./backfill-congress-laws";
 export { biasCheckPacket } from "./bias-check-packet";
