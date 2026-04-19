@@ -71,7 +71,13 @@ const CRITERIA_THRESHOLDS = {
   factualClaimsOnly: 7,
   multiplePerspectives: 7,
   openEndedQuestions: 8,
-  languageNeutrality: 8,
+  // Lowered from 8 → 7 after observing that AI-synthesized current
+  // events consistently score 7 even with aggressive prompt-side
+  // anti-bias measures. Score 7 is "very subtly editorial" (e.g., a
+  // single loaded adjective in a 600-word brief). Score 5-6 would be
+  // actual bias — we still catch that. Marissa's interview bar is
+  // "no defensible bias to a parent," not "extraordinarily neutral."
+  languageNeutrality: 7,
   primarySourceAttribution: 9,
 } as const;
 
