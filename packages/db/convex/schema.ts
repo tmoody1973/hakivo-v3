@@ -177,6 +177,7 @@ export default defineSchema({
       }),
     ),
     audioUrl: v.union(v.string(), v.null()),
+    audioDurationSec: v.optional(v.number()),
     pdfUrl: v.union(v.string(), v.null()),
     standardsAlignment: v.object({
       c3Dimensions: v.array(v.string()),

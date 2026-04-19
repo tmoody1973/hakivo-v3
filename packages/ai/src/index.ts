@@ -9,3 +9,12 @@ export {
   type BiasCheckInput,
   type BiasCheckResult,
 } from "./bias-check";
+export {
+  synthesizeSpeech,
+  TTS_VOICES,
+  DEFAULT_HAKIVO_SPEAKERS,
+  type TtsVoice,
+  type SpeakerConfig,
+  type SynthesizeArgs,
+  type SynthesizeResult,
+} from "./gemini-tts";

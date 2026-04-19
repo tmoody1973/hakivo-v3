@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./prompts/facts-only": "./src/prompts/facts-only.ts",
     "./gemini": "./src/gemini.ts",
+    "./gemini-tts": "./src/gemini-tts.ts",
     "./bias-check": "./src/bias-check.ts"
   },
   "scripts": {

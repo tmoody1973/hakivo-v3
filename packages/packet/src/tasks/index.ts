@@ -23,6 +23,11 @@ export type {
   GeneratePacketPayload,
   GeneratePacketResult,
 } from "./generate-packet";
+export { generatePacketAudio } from "./generate-packet-audio";
+export type {
+  GeneratePacketAudioPayload,
+  GeneratePacketAudioResult,
+} from "./generate-packet-audio";
 export { ingestLegislatorsWeekly } from "./ingest-legislators-weekly";
 export { syncCongressDaily } from "./sync-congress-daily";
 export { syncLawsDaily } from "./sync-laws-daily";

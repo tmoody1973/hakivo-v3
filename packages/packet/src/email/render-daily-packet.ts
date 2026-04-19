@@ -43,6 +43,13 @@ export type RenderedEmail = {
   readonly text: string;
 };
 
+function formatAudioDuration(seconds: number | undefined): string {
+  if (!seconds || seconds <= 0) return "audio";
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
 function formatLongDate(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
   if (!y || !m || !d) return iso;
@@ -151,6 +158,24 @@ export function renderDailyPacketEmail(input: RenderInput): RenderedEmail {
         </tr>
 
         ${
+          packet.audioUrl
+            ? `<tr>
+          <td style="padding:8px 28px 24px 28px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${COLORS.cream};border:1px solid ${COLORS.rule};">
+              <tr>
+                <td style="padding:14px 16px;">
+                  <p style="margin:0 0 6px 0;font-family:${SANS};font-size:11px;letter-spacing:2px;color:${COLORS.inkMuted};text-transform:uppercase;">Listen — ${formatAudioDuration(packet.audioDurationSec)}</p>
+                  <a href="${packet.audioUrl}" style="display:inline-block;padding:8px 16px;background:${COLORS.accent};color:${COLORS.accentText};font-family:${SANS};font-size:13px;font-weight:500;text-decoration:none;border-radius:8px;">▸ Play briefing</a>
+                  <p style="margin:6px 0 0 0;font-family:${SANS};font-size:11px;color:${COLORS.inkMuted};">Two-host briefing — folds nicely into a Sunday-evening prep window.</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>`
+            : ""
+        }
+
+        ${
           classroomPushUrl
             ? `<tr>
           <td style="padding:8px 28px 24px 28px;">
@@ -229,6 +254,10 @@ export function renderDailyPacketEmail(input: RenderInput): RenderedEmail {
     "",
     packet.teacherBrief,
     "",
+    packet.audioUrl
+      ? `LISTEN (${formatAudioDuration(packet.audioDurationSec)}): ${packet.audioUrl}`
+      : "",
+    packet.audioUrl ? "" : "",
     "DISCUSSION QUESTIONS",
     ...packet.discussionQuestions.map((q, i) => `${i + 1}. ${q}`),
     "",

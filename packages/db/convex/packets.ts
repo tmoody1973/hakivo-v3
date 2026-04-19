@@ -112,6 +112,22 @@ export const markDelivered = mutation({
 });
 
 /**
+ * Persist audio briefing URL after Trigger task uploads to R2. Called
+ * by generatePacketAudio. audioDurationSec is integer seconds for the
+ * UI to render a "(3:42)" badge without re-fetching the file.
+ */
+export const setAudio = mutation({
+  args: {
+    id: v.id("packets"),
+    audioUrl: v.string(),
+    audioDurationSec: v.number(),
+  },
+  handler: async (ctx, { id, audioUrl, audioDurationSec }) => {
+    await ctx.db.patch(id, { audioUrl, audioDurationSec });
+  },
+});
+
+/**
  * Founder-queue operation: approve or reject a packet that the auto
  * bias check flagged. On approve, status advances to delivered. On reject,
  * status lands at failed so the packet never ships.

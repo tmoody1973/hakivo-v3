@@ -2,7 +2,7 @@ import { logger, task } from "@trigger.dev/sdk";
 import { checkPacketBias } from "@hakivo/ai";
 import { api, type Id } from "@hakivo/db";
 import { ConvexHttpClient } from "convex/browser";
-import { sendPacketEmail } from "./send-packet-email";
+import { generatePacketAudio } from "./generate-packet-audio";
 
 /**
  * Run the 5-criterion bias rubric on a packet. See design doc
@@ -95,12 +95,14 @@ export const biasCheckPacket = task({
       biasProvider: result.provider,
     });
 
-    // On bias-pass, chain-trigger the email send. Failures route to the
-    // human-review queue and email is held until founder approves (the
-    // /admin/review server action will fire send-packet-email manually).
+    // On bias-pass, chain-trigger audio generation. The audio task in
+    // turn chains send-packet-email after upload (or on failure). This
+    // serial order means the email always carries the audio link when
+    // TTS succeeds. Failures route to the human-review queue; founder
+    // approval in /admin/review fires generate-packet-audio manually.
     if (result.passed) {
-      await sendPacketEmail.trigger({ packetId: payload.packetId });
-      logger.log(`Chained send-packet-email for ${payload.packetId}`);
+      await generatePacketAudio.trigger({ packetId: payload.packetId });
+      logger.log(`Chained generate-packet-audio for ${payload.packetId}`);
     }
 
     return {

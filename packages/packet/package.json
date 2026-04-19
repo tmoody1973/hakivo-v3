@@ -18,6 +18,7 @@
     "@hakivo/ai": "workspace:*",
     "@hakivo/congress": "workspace:*",
     "@hakivo/db": "workspace:*",
+    "@aws-sdk/client-s3": "^3.687.0",
     "@trigger.dev/sdk": "4.4.4",
     "convex": "^1.17.4",
     "resend": "^4.0.1"
