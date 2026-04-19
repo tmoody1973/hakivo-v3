@@ -228,6 +228,30 @@ export const create = mutation({
         excerpt: v.string(),
       }),
     ),
+    billsCitedSnapshot: v.optional(
+      v.array(
+        v.object({
+          billRef: v.string(),
+          title: v.string(),
+          congressGovUrl: v.string(),
+          partyBalance: v.object({
+            D: v.number(),
+            R: v.number(),
+            I: v.number(),
+            other: v.number(),
+            total: v.number(),
+            isBipartisan: v.boolean(),
+          }),
+          recentActions: v.array(
+            v.object({
+              actionDate: v.number(),
+              actionText: v.string(),
+              actionType: v.string(),
+            }),
+          ),
+        }),
+      ),
+    ),
     standardsAlignment: v.object({
       c3Dimensions: v.array(v.string()),
       apCedUnits: v.union(v.array(v.string()), v.null()),

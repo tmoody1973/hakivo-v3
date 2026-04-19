@@ -244,6 +244,29 @@ export const generatePacket = task({
       model: "gemini-2.5-pro",
     });
 
+    // Snapshot the bill facts the generator just used so the bias-check
+    // rubric can verify claims like "passed Ways & Means 43-0" against
+    // Congress.gov primary-source data — those facts don't fit in the
+    // 200-char primarySources excerpts.
+    const billsCitedSnapshot = context.bills.map((b) => ({
+      billRef: b.billRef,
+      title: b.title,
+      congressGovUrl: `https://www.congress.gov/bill/${b.congressNumber}th-congress/${b.billType === "hr" ? "house-bill" : b.billType === "s" ? "senate-bill" : `${b.billType}-resolution`}/${b.billNumber}`,
+      partyBalance: {
+        D: b.partyBalance.D,
+        R: b.partyBalance.R,
+        I: b.partyBalance.I,
+        other: b.partyBalance.other,
+        total: b.partyBalance.total,
+        isBipartisan: b.partyBalance.isBipartisan,
+      },
+      recentActions: b.recentActions.map((a) => ({
+        actionDate: a.actionDate,
+        actionText: a.actionText,
+        actionType: a.actionType,
+      })),
+    }));
+
     const packetId = await convex.mutation(api.packets.create, {
       orgId: teacher.orgId,
       teacherId: payload.teacherId,
@@ -264,6 +287,7 @@ export const generatePacket = task({
         url: p.url,
         excerpt: p.excerpt,
       })),
+      billsCitedSnapshot,
       standardsAlignment: {
         c3Dimensions: [...generated.standardsAlignment.c3Dimensions],
         apCedUnits: generated.standardsAlignment.apCedUnits

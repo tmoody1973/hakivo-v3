@@ -176,6 +176,38 @@ export default defineSchema({
         excerpt: v.string(),
       }),
     ),
+    /**
+     * Snapshot of facts the generator pulled from Convex bill records
+     * (cosponsor party tallies, action history, party balance). The
+     * bias-check rubric reads this as authoritative primary-source data
+     * so claims like "passed Ways & Means 43-0" or "18D/5R cosponsors"
+     * can be traced — they're Congress.gov facts that wouldn't fit in
+     * the truncated primarySources excerpts.
+     */
+    billsCitedSnapshot: v.optional(
+      v.array(
+        v.object({
+          billRef: v.string(),
+          title: v.string(),
+          congressGovUrl: v.string(),
+          partyBalance: v.object({
+            D: v.number(),
+            R: v.number(),
+            I: v.number(),
+            other: v.number(),
+            total: v.number(),
+            isBipartisan: v.boolean(),
+          }),
+          recentActions: v.array(
+            v.object({
+              actionDate: v.number(),
+              actionText: v.string(),
+              actionType: v.string(),
+            }),
+          ),
+        }),
+      ),
+    ),
     audioUrl: v.union(v.string(), v.null()),
     audioDurationSec: v.optional(v.number()),
     pdfUrl: v.union(v.string(), v.null()),

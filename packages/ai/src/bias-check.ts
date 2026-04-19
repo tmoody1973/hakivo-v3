@@ -29,6 +29,30 @@ export type BiasCheckInput = {
     readonly url: string;
     readonly excerpt: string;
   }[];
+  /**
+   * Authoritative bill facts the generator pulled from Congress.gov via
+   * Convex. The rubric treats these as primary-source data — claims in
+   * the brief that match these tallies / cosponsor breakdowns / actions
+   * are considered fully attributed.
+   */
+  readonly billFacts?: ReadonlyArray<{
+    readonly billRef: string;
+    readonly title: string;
+    readonly congressGovUrl: string;
+    readonly partyBalance: {
+      readonly D: number;
+      readonly R: number;
+      readonly I: number;
+      readonly other: number;
+      readonly total: number;
+      readonly isBipartisan: boolean;
+    };
+    readonly recentActions: ReadonlyArray<{
+      readonly actionDate: number;
+      readonly actionText: string;
+      readonly actionType: string;
+    }>;
+  }>;
 };
 
 export type BiasCheckResult = {
@@ -120,9 +144,49 @@ The 5 criteria and thresholds:
 2. multiplePerspectives (≥7): pro/con balance on contested issues
 3. openEndedQuestions (≥8): open-ended vs leading
 4. languageNeutrality (≥8): loaded adjectives, partisan framings
-5. primarySourceAttribution (≥9): claims traceable to cited sources`;
+5. primarySourceAttribution (≥9): claims traceable to cited sources
+
+PRIMARY SOURCE DATA NOTE:
+Each packet ships with two source layers — short PRIMARY SOURCES
+(label, url, 200-char excerpt) and a richer BILL FACTS section
+(authoritative party tallies, cosponsor counts, action history pulled
+directly from Congress.gov via the Convex bill records). When scoring
+primarySourceAttribution, treat BILL FACTS as fully attributable
+primary-source data: claims in the brief that match the tallies,
+party breakdown, or recent actions in BILL FACTS are sourced.
+A claim does NOT need to appear verbatim in a primarySource excerpt
+to be attributed — the BILL FACTS row for that bill is itself the
+Congress.gov-traceable source.`;
+
+function formatBillFacts(
+  facts: NonNullable<BiasCheckInput["billFacts"]>,
+): string {
+  return facts
+    .map((b) => {
+      const recent = b.recentActions
+        .slice(0, 5)
+        .map((a) => {
+          const date = new Date(a.actionDate).toISOString().slice(0, 10);
+          return `    ${date} [${a.actionType}] ${a.actionText}`;
+        })
+        .join("\n");
+      const pb = b.partyBalance;
+      return [
+        `${b.billRef} — ${b.title}`,
+        `  Source: ${b.congressGovUrl}`,
+        `  Cosponsors: ${pb.D}D / ${pb.R}R / ${pb.I}I / ${pb.other} other (total ${pb.total}, bipartisan=${pb.isBipartisan})`,
+        `  Recent actions:\n${recent || "    (none recorded)"}`,
+      ].join("\n");
+    })
+    .join("\n\n");
+}
 
 function buildUserPrompt(input: BiasCheckInput): string {
+  const billFactsSection =
+    input.billFacts && input.billFacts.length > 0
+      ? `\n=== BILL FACTS (Congress.gov primary-source data) ===\n${formatBillFacts(input.billFacts)}\n`
+      : "";
+
   return `Packet to review:
 
 === TEACHER BRIEF ===
@@ -136,7 +200,7 @@ ${input.exitTicketQuestions.map((q, i) => `${i + 1}. ${q.prompt}`).join("\n")}
 
 === PRIMARY SOURCES ===
 ${input.primarySources.map((s) => `- ${s.label} (${s.url}): "${s.excerpt.slice(0, 200)}"`).join("\n")}
-
+${billFactsSection}
 Score this packet against the 5 criteria and return JSON matching the schema.`;
 }
 

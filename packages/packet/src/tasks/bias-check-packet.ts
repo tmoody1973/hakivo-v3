@@ -68,6 +68,9 @@ export const biasCheckPacket = task({
         discussionQuestions: packet.discussionQuestions,
         exitTicketQuestions: packet.exitTicket.questions,
         primarySources: packet.primarySources,
+        ...(packet.billsCitedSnapshot && {
+          billFacts: packet.billsCitedSnapshot,
+        }),
       },
       {
         ...(anthropicKey !== undefined && { anthropic: anthropicKey }),
