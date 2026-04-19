@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Doc } from "@hakivo/db";
 
 function formatShort(iso: string): string {
@@ -45,31 +46,24 @@ export function PacketHistory({ packets }: { packets: readonly Doc<"packets">[] 
       </div>
       <ul className="mt-4 divide-y divide-rule">
         {packets.slice(0, 7).map((p) => (
-          <li key={p._id} className="flex items-center justify-between py-3">
-            <div className="flex items-baseline gap-4">
-              <time className="w-16 shrink-0 text-xs text-ink-muted" dateTime={p.packetDate}>
-                {formatShort(p.packetDate)}
-              </time>
-              <span className="text-sm text-ink">{shortHeadline(p)}</span>
-            </div>
-            <div className="flex items-center gap-2" aria-label="Feedback (not yet implemented)">
-              <button
-                type="button"
-                disabled
-                aria-label="Thumbs up"
-                className="size-7 rounded-full border border-rule text-ink-muted opacity-40"
-              >
-                ↑
-              </button>
-              <button
-                type="button"
-                disabled
-                aria-label="Thumbs down"
-                className="size-7 rounded-full border border-rule text-ink-muted opacity-40"
-              >
-                ↓
-              </button>
-            </div>
+          <li key={p._id}>
+            <Link
+              href={`/teacher/packets/${p._id}`}
+              className="flex items-center justify-between py-3 hover:bg-white/60"
+            >
+              <div className="flex items-baseline gap-4">
+                <time
+                  className="w-16 shrink-0 text-xs text-ink-muted"
+                  dateTime={p.packetDate}
+                >
+                  {formatShort(p.packetDate)}
+                </time>
+                <span className="text-sm text-ink">{shortHeadline(p)}</span>
+              </div>
+              <span className="text-xs text-ink-muted" aria-hidden>
+                →
+              </span>
+            </Link>
           </li>
         ))}
       </ul>

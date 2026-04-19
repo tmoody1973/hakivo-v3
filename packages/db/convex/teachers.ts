@@ -27,6 +27,36 @@ export const repointOrg = mutation({
   },
 });
 
+/**
+ * Update a teacher's profile. Only the teacher themselves can call this
+ * (verified via ctx.auth). Used by /teacher/settings.
+ */
+export const updateMe = mutation({
+  args: {
+    name: v.optional(v.string()),
+    school: v.optional(v.string()),
+    state: v.optional(v.string()),
+    gradesTaught: v.optional(v.array(v.string())),
+    courses: v.optional(v.array(v.string())),
+    currentUnit: v.optional(v.union(v.string(), v.null())),
+    targetReadingLevel: v.optional(v.string()),
+    timezone: v.optional(v.string()),
+  },
+  handler: async (ctx, patch) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthenticated");
+    const teacher = await ctx.db
+      .query("teachers")
+      .withIndex("by_clerkUserId", (q) =>
+        q.eq("clerkUserId", identity.subject),
+      )
+      .first();
+    if (!teacher) throw new Error("Not onboarded");
+    await ctx.db.patch(teacher._id, patch);
+    return teacher._id;
+  },
+});
+
 export const getByClerkUserId = query({
   args: { clerkUserId: v.string() },
   handler: async (ctx, { clerkUserId }) => {
