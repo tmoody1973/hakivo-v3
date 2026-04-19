@@ -13,7 +13,12 @@ export type EmailSender = {
     readonly subject: string;
     readonly html: string;
     readonly text: string;
-    readonly tags?: ReadonlyArray<{ readonly name: string; readonly value: string }>;
+    readonly tags?: ReadonlyArray<{
+      readonly name: string;
+      readonly value: string;
+    }>;
+    readonly headers?: Readonly<Record<string, string>>;
+    readonly replyTo?: string;
   }) => Promise<{ readonly id: string }>;
   readonly fromAddress: string;
 };
@@ -30,14 +35,18 @@ export function createEmailSender(args: {
 
   return {
     fromAddress,
-    async send({ to, subject, html, text, tags }) {
+    async send({ to, subject, html, text, tags, headers, replyTo }) {
       const result = await client.emails.send({
         from: fromAddress,
         to,
         subject,
         html,
         text,
-        ...(tags && { tags: tags.map((t) => ({ name: t.name, value: t.value })) }),
+        ...(tags && {
+          tags: tags.map((t) => ({ name: t.name, value: t.value })),
+        }),
+        ...(headers && { headers: { ...headers } }),
+        ...(replyTo && { replyTo }),
       });
       if (result.error) {
         throw new Error(

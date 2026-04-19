@@ -35,6 +35,8 @@ export type GeneratePacketPayload = {
   readonly readingLevelOverride?: string;
   /** Who requested this — defaults to auto_schedule */
   readonly requestedBy?: "auto_schedule" | "teacher_request";
+  /** If true, deletes any existing packet for (teacher, date) before generating. */
+  readonly forceRegenerate?: boolean;
 };
 
 export type GeneratePacketResult = {
@@ -190,6 +192,20 @@ export const generatePacket = task({
 
     const packetDate =
       payload.packetDate ?? new Date().toISOString().slice(0, 10);
+
+    if (payload.forceRegenerate) {
+      const deletedPacket = await convex.mutation(api.packets.deleteForDate, {
+        teacherId: payload.teacherId,
+        packetDate,
+      });
+      const deletedLedger = await convex.mutation(
+        api.packetDeliveries.deleteForDate,
+        { teacherId: payload.teacherId, localDate: packetDate },
+      );
+      logger.log(
+        `forceRegenerate: deleted packet=${deletedPacket} ledger=${deletedLedger} for ${packetDate}`,
+      );
+    }
 
     // Precedence:
     //   1. Explicit customTopic from a teacher request

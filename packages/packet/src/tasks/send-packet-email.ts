@@ -89,11 +89,22 @@ export const sendPacketEmail = task({
 
     let resendId: string;
     try {
+      // Deliverability headers per Gmail Feb 2024 bulk-sender rules:
+      //   - List-Unsubscribe: one-click mailto + URL (when we ship a real
+      //     unsubscribe page, swap the placeholder)
+      //   - List-Unsubscribe-Post enables one-click unsubscribe in Gmail
+      //   - X-Entity-Ref-ID for our own debugging in mail headers
       const result = await sender.send({
         to: teacher.email,
         subject,
         html,
         text,
+        replyTo: "hello@updates.hakivo.com",
+        headers: {
+          "List-Unsubscribe": `<mailto:unsubscribe@updates.hakivo.com?subject=unsubscribe-${teacher._id}>, <https://hakivo.com/unsubscribe?t=${teacher._id}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          "X-Entity-Ref-ID": `packet:${payload.packetId}`,
+        },
         tags: [
           { name: "packet_id", value: String(payload.packetId) },
           { name: "teacher_id", value: String(teacher._id) },

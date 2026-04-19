@@ -242,3 +242,23 @@ export const create = mutation({
     return id;
   },
 });
+
+/**
+ * Delete the packet for (teacher, date), if any. Returns the deleted id
+ * or null if no row existed. Used by the forceRegenerate path of the
+ * generator and by /admin/review when a packet needs to be re-rolled.
+ */
+export const deleteForDate = mutation({
+  args: { teacherId: v.id("teachers"), packetDate: v.string() },
+  handler: async (ctx, { teacherId, packetDate }) => {
+    const existing = await ctx.db
+      .query("packets")
+      .withIndex("by_teacher_date", (q) =>
+        q.eq("teacherId", teacherId).eq("packetDate", packetDate),
+      )
+      .first();
+    if (!existing) return null;
+    await ctx.db.delete(existing._id);
+    return existing._id;
+  },
+});

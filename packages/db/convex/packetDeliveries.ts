@@ -77,6 +77,26 @@ export const markFailed = mutation({
   },
 });
 
+/**
+ * Delete the ledger row for (teacher, date), if any. Used by the
+ * forceRegenerate path of generate-packet so a re-run actually re-sends
+ * the email (otherwise startSend short-circuits as skipped_duplicate).
+ */
+export const deleteForDate = mutation({
+  args: { teacherId: v.id("teachers"), localDate: v.string() },
+  handler: async (ctx, { teacherId, localDate }) => {
+    const existing = await ctx.db
+      .query("packetDeliveries")
+      .withIndex("by_recipient_date", (q) =>
+        q.eq("recipientId", teacherId).eq("localDate", localDate),
+      )
+      .first();
+    if (!existing) return null;
+    await ctx.db.delete(existing._id);
+    return existing._id;
+  },
+});
+
 export const listForTeacher = query({
   args: { teacherId: v.id("teachers"), limit: v.optional(v.number()) },
   handler: async (ctx, { teacherId, limit }) => {
