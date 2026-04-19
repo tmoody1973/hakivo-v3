@@ -6,8 +6,10 @@
  *   - legislators-current.yaml     — identity + term + office
  *   - legislators-social-media.yaml — Twitter, YouTube, Facebook, Instagram
  *
- * Photos are hosted at theunitedstates.io/images/congress/{size}/{bioguideId}.jpg
- * with a stable URL pattern — we just compute the URL from bioguideId.
+ * Photos: the original theunitedstates.io CDN started returning 403 in
+ * April 2026. The same images mirror at raw.githubusercontent.com from
+ * the unitedstates/images repo (gh-pages branch) — same path layout,
+ * still 200 OK, no auth required. Hot-link directly from there.
  *
  * Updates weekly is fine: roster changes are rare (resignations, special
  * elections, deaths) and social-media handles churn slowly.
@@ -21,7 +23,7 @@ const SOCIAL_URL =
   "https://raw.githubusercontent.com/unitedstates/congress-legislators/main/legislators-social-media.yaml";
 
 const PHOTO_URL = (bioguideId: string) =>
-  `https://theunitedstates.io/images/congress/225x275/${bioguideId}.jpg`;
+  `https://raw.githubusercontent.com/unitedstates/images/gh-pages/congress/225x275/${bioguideId}.jpg`;
 
 type YamlTerm = {
   type: "rep" | "sen";

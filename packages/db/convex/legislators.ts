@@ -124,3 +124,28 @@ export const getByBioguideId = query({
       .first();
   },
 });
+
+/**
+ * One-shot migration: rewrite all theunitedstates.io photo URLs to the
+ * raw.githubusercontent.com mirror. theunitedstates.io's CDN started
+ * returning 403 in April 2026; mirror has identical layout and 200s.
+ * Idempotent — re-run is a no-op once all rows are migrated.
+ */
+export const migratePhotoUrlsToGithub = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const all = await ctx.db.query("legislators").collect();
+    let updated = 0;
+    for (const leg of all) {
+      if (leg.photoUrl?.startsWith("https://theunitedstates.io/images/")) {
+        const next = leg.photoUrl.replace(
+          "https://theunitedstates.io/images/",
+          "https://raw.githubusercontent.com/unitedstates/images/gh-pages/",
+        );
+        await ctx.db.patch(leg._id, { photoUrl: next });
+        updated += 1;
+      }
+    }
+    return { scanned: all.length, updated };
+  },
+});
