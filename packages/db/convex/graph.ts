@@ -160,6 +160,10 @@ type PacketContextBill = {
   readonly congressNumber: number;
   readonly billType: string;
   readonly billNumber: number;
+  /** "WI" / "CA" for state bills; null for federal. */
+  readonly state: string | null;
+  /** "us-fed" / "us-wi" — drives URL building downstream. */
+  readonly jurisdiction: string;
   readonly title: string;
   readonly summary: string | null;
   readonly latestAction: string;
@@ -239,7 +243,11 @@ export const buildPacketContext = action({
 
     const enriched: PacketContextBill[] = await Promise.all(
       bills.map(async ({ bill, score }) => {
-        const billRef = `${bill.congressNumber}-${bill.billType}-${bill.billNumber}`;
+        // State bills use "wi-2025-ab-1206" pattern; federal uses
+        // "119-hr-5334". Both are unique within the bills table.
+        const billRef = bill.state
+          ? `${bill.state.toLowerCase()}-${bill.session ?? bill.congressNumber}-${bill.billType}-${bill.billNumber}`
+          : `${bill.congressNumber}-${bill.billType}-${bill.billNumber}`;
         const [partyBalance, stateDelegation, recentActions, subjectRows] =
           await Promise.all([
             ctx.runQuery(api.graph.partyBalanceForBill, { billRef }),
@@ -262,6 +270,8 @@ export const buildPacketContext = action({
           congressNumber: bill.congressNumber,
           billType: bill.billType,
           billNumber: bill.billNumber,
+          state: bill.state ?? null,
+          jurisdiction: bill.jurisdiction ?? "us-fed",
           title: bill.title,
           summary: bill.summary ?? null,
           latestAction: bill.latestAction,

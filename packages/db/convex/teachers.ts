@@ -217,6 +217,25 @@ export const setClassroomCourse = mutation({
 });
 
 /**
+ * Set personal-tier interests + state for the personal-packet generator.
+ * Called from /personal/settings (when that UI lands) or directly via
+ * a script for now.
+ */
+export const setPersonalSettings = mutation({
+  args: {
+    teacherId: v.id("teachers"),
+    interestTags: v.array(v.string()),
+    personalState: v.optional(v.string()),
+  },
+  handler: async (ctx, { teacherId, interestTags, personalState }) => {
+    await ctx.db.patch(teacherId, {
+      interestTags,
+      ...(personalState !== undefined && { personalState }),
+    });
+  },
+});
+
+/**
  * Disconnect Google Classroom — wipes refresh token + course settings.
  * Used by the "Disconnect" button in settings. Does NOT revoke the
  * Google-side grant; teachers should also revoke at myaccount.google.com

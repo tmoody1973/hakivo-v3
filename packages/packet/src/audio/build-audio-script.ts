@@ -20,7 +20,28 @@ import { GoogleGenAI } from "@google/genai";
 
 const SCRIPT_MODEL = "gemini-2.5-flash";
 
-const SCRIPT_SYSTEM_PROMPT = `You are scripting a short morning radio segment in the NPR "Up First" / "The Daily" style. Two co-hosts, MAYA and JORDAN, deliver a 3-4 minute briefing on this week's congressional activity for high school civics teachers.
+/**
+ * Audience-specific framing for Maya/Jordan. Same shared rules below;
+ * only the audience line + closing handoff change.
+ */
+const AUDIENCE_FRAMINGS = {
+  teacher: {
+    audienceLine:
+      "deliver a 3-4 minute briefing on this week's congressional activity for high school civics teachers.",
+    closingHandoff:
+      'Jordan hands off to "the full packet in your inbox — exit ticket, primary sources, standards alignment."',
+  },
+  personal: {
+    audienceLine:
+      "deliver a 3-4 minute civic briefing for an engaged adult listener — someone who wants to stay current on policy without partisan filter. Not a classroom audience; no AP curriculum framing, no 'students,' no 'lessons.'",
+    closingHandoff:
+      'Jordan hands off to "the full brief in your inbox — sources, reflective questions, the works."',
+  },
+} as const;
+
+function buildSystemPrompt(audience: "teacher" | "personal"): string {
+  const framing = AUDIENCE_FRAMINGS[audience];
+  return `You are scripting a short morning radio segment in the NPR "Up First" / "The Daily" style. Two co-hosts, MAYA and JORDAN, ${framing.audienceLine}
 
 CRITICAL RULES:
 1. Use ONLY facts present in the source material. Never invent details, dates, vote counts, sponsors, or quotes.
@@ -32,11 +53,12 @@ CRITICAL RULES:
 7. Format strictly as alternating speaker lines:
    Maya: ...
    Jordan: ...
-8. Open with: Maya greeting + framing the date and the central theme. Close with: Jordan handing off to "the full packet in your inbox — exit ticket, primary sources, standards alignment."
+8. Open with: Maya greeting + framing the date and the central theme. Close with: ${framing.closingHandoff}
 9. After Jordan's important closing line, ALWAYS add ONE more short throwaway line from Maya (e.g., "Maya: Have a great rest of your week.") — this acts as a TTS tail buffer; if the model clips its audio output near the end (a known Gemini TTS quirk), the throwaway gets clipped instead of the real handoff.
 10. Total spoken length target: 550-700 words.
 
 Output ONLY the script. No preamble, no markdown, no scene direction beyond audio tags.`;
+}
 
 export type BuildScriptArgs = {
   readonly packet: Doc<"packets">;
@@ -49,6 +71,8 @@ export async function buildAudioScript(args: BuildScriptArgs): Promise<string> {
     throw new Error("GEMINI_API_KEY required for audio script generation");
   }
 
+  const audience: "teacher" | "personal" = packet.audience ?? "teacher";
+  const systemPrompt = buildSystemPrompt(audience);
   const sourceMaterial = formatSourceMaterial(packet);
   const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
@@ -59,7 +83,7 @@ export async function buildAudioScript(args: BuildScriptArgs): Promise<string> {
         role: "user",
         parts: [
           {
-            text: `${SCRIPT_SYSTEM_PROMPT}\n\n---\nSOURCE MATERIAL:\n${sourceMaterial}\n---\nWrite the dialogue now.`,
+            text: `${systemPrompt}\n\n---\nSOURCE MATERIAL:\n${sourceMaterial}\n---\nWrite the dialogue now.`,
           },
         ],
       },

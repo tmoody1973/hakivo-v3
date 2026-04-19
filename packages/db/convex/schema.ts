@@ -35,6 +35,18 @@ export default defineSchema({
     classroomCourseName: v.optional(v.string()),
     /** Google email the teacher authorized — surfaced in settings UI. */
     classroomGoogleEmail: v.optional(v.string()),
+    /**
+     * Personal-tier interest tags ("broadband policy", "voting rights",
+     * "AI regulation"). Drives the news fetch + bill retrieval query
+     * for the personal-packet generator. Empty = use a sensible default.
+     */
+    interestTags: v.optional(v.array(v.string())),
+    /**
+     * Personal-tier state for state-bill retrieval ("WI", "CA"). Falls
+     * back to teacher.state when null, then to "all states" when both
+     * are empty.
+     */
+    personalState: v.optional(v.string()),
     createdAt: v.number(),
     status: v.union(
       v.literal("trial"),
@@ -182,6 +194,14 @@ export default defineSchema({
      * when missing (older packets).
      */
     headline: v.optional(v.string()),
+    /**
+     * Drives downstream voice + framing. "teacher" (default) writes
+     * Maya/Jordan as briefing high-school civics teachers. "personal"
+     * writes them as briefing a civically engaged adult.
+     */
+    audience: v.optional(
+      v.union(v.literal("teacher"), v.literal("personal")),
+    ),
     teacherBrief: v.string(),
     discussionQuestions: v.array(v.string()),
     exitTicket: v.object({

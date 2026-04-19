@@ -131,6 +131,26 @@ export const setAudio = mutation({
  * Persist PDF handout URL after Trigger task uploads to R2. Called by
  * generatePacketPdf.
  */
+/**
+ * One-shot: stamp an `audience` value on a packet. Used to backfill
+ * existing rows after the audience field was added to the schema.
+ */
+export const setAudience = mutation({
+  args: {
+    id: v.id("packets"),
+    audience: v.union(v.literal("teacher"), v.literal("personal")),
+    /** When true, also clears audioUrl so re-firing audio regenerates. */
+    clearAudio: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { id, audience, clearAudio }) => {
+    const patch: { audience: "teacher" | "personal"; audioUrl?: null } = {
+      audience,
+    };
+    if (clearAudio) patch.audioUrl = null;
+    await ctx.db.patch(id, patch);
+  },
+});
+
 export const setPdf = mutation({
   args: {
     id: v.id("packets"),
@@ -207,6 +227,9 @@ export const create = mutation({
     packetDate: v.string(),
     sourceEventIds: v.array(v.id("congressEvents")),
     headline: v.optional(v.string()),
+    audience: v.optional(
+      v.union(v.literal("teacher"), v.literal("personal")),
+    ),
     teacherBrief: v.string(),
     discussionQuestions: v.array(v.string()),
     exitTicket: v.object({

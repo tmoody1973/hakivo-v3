@@ -15,6 +15,11 @@ export type {
   FetchPolicyNewsPayload,
   FetchPolicyNewsResult,
 } from "./fetch-policy-news";
+export { generatePersonalPacket } from "./generate-personal-packet";
+export type {
+  GeneratePersonalPacketPayload,
+  GeneratePersonalPacketResult,
+} from "./generate-personal-packet";
 export { backfillCongressLaws } from "./backfill-congress-laws";
 export type { BackfillCongressLawsPayload } from "./backfill-congress-laws";
 export { biasCheckPacket } from "./bias-check-packet";
