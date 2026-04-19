@@ -15,23 +15,24 @@ import { ConvexHttpClient } from "convex/browser";
 const url = process.env.CONVEX_URL ?? process.env.NEXT_PUBLIC_CONVEX_URL;
 if (!url) throw new Error("CONVEX_URL not set");
 
-const batchCount = Number(process.argv[2] ?? "10");
+const totalTarget = Number(process.argv[2] ?? "500");
 const perBatch = Number(process.argv[3] ?? "50");
 
 const convex = new ConvexHttpClient(url);
-let totalQueued = 0;
 
-for (let i = 0; i < batchCount; i++) {
-  const candidates = await convex.query(api.bills.listUnenriched, {
-    limit: perBatch,
-  });
-  if (candidates.length === 0) {
-    console.log(`Queue drained after ${i} batches.`);
-    break;
-  }
+// One big query — guarantees uniqueness across batches. Split client-side.
+console.log(`Querying ${totalTarget} unenriched bills…`);
+const all = await convex.query(api.bills.listUnenriched, {
+  limit: totalTarget,
+});
+console.log(`Got ${all.length} unique unenriched bills.`);
+
+let totalQueued = 0;
+for (let i = 0; i < all.length; i += perBatch) {
+  const slice = all.slice(i, i + perBatch);
   const handle = await tasks.batchTrigger<typeof enrichBill>(
     "enrich-bill",
-    candidates.map((b) => ({
+    slice.map((b) => ({
       payload: {
         congressNumber: b.congressNumber,
         billType: b.billType,
@@ -42,11 +43,11 @@ for (let i = 0; i < batchCount; i++) {
   );
   totalQueued += handle.runCount;
   console.log(
-    `Batch ${i + 1}/${batchCount}: ${handle.runCount} queued (batchId=${handle.batchId}). Sleeping 5s.`,
+    `Batch ${Math.floor(i / perBatch) + 1}: ${handle.runCount} queued (batchId=${handle.batchId})`,
   );
-  if (i < batchCount - 1) {
-    await new Promise((r) => setTimeout(r, 5_000));
+  if (i + perBatch < all.length) {
+    await new Promise((r) => setTimeout(r, 3_000));
   }
 }
 
-console.log(`\nDone. Total queued: ${totalQueued}`);
+console.log(`\nDone. Total unique queued: ${totalQueued}`);
